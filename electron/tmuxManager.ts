@@ -7,6 +7,7 @@ import fs from "fs-extra";
 import type { Agent, PtyDataEvent, PtyStatusEvent } from "../src/types";
 
 const SESSION_NAME = "mao-orch";
+const shellQuote = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
 
 type TmuxManagerEvents = {
   data: [PtyDataEvent];
@@ -61,10 +62,13 @@ export class TmuxManager extends EventEmitter {
 
     const windowName = this.windowNameFor(agent.id);
     const cwd = agent.workingDirectory || process.env.HOME || "/tmp";
-    const fullCommand = [agent.command, ...(agent.args ?? [])].filter(Boolean).join(" ");
+    const fullCommand = [agent.command, ...(agent.args ?? [])]
+      .filter(Boolean)
+      .map(shellQuote)
+      .join(" ");
 
     try {
-      this.tmux(["new-window", "-t", SESSION_NAME, "-n", windowName, "-c", cwd, fullCommand]);
+      this.tmux(["new-window", "-t", SESSION_NAME, "-n", windowName, "-c", cwd]);
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
@@ -77,6 +81,7 @@ export class TmuxManager extends EventEmitter {
 
     try {
       this.tmux(["pipe-pane", "-o", "-t", `${SESSION_NAME}:${windowName}`, `cat >> "${logPath}"`]);
+      this.tmux(["send-keys", "-t", `${SESSION_NAME}:${windowName}`, fullCommand, "Enter"]);
     } catch (error) {
       try {
         execFileSync("tmux", ["kill-window", "-t", `${SESSION_NAME}:${windowName}`], { stdio: "ignore" });
