@@ -3,12 +3,14 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { getTranslations } from "../i18n";
-import { useAppStore } from "../store/useAppStore";
+import { ORGANIZATION_PLANNER_AGENT_ID, useAppStore } from "../store/useAppStore";
 import { maskSecrets } from "../utils/maskSecrets";
+import type { Agent } from "../types";
 
 export default function TerminalPanel(): ReactElement {
   const agents = useAppStore((state) => state.agents);
   const logs = useAppStore((state) => state.logs);
+  const plannerStatus = useAppStore((state) => state.plannerStatus);
   const locale = useAppStore((state) => state.locale);
   const t = getTranslations(locale);
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
@@ -18,17 +20,34 @@ export default function TerminalPanel(): ReactElement {
   const writtenCountsRef = useRef<Record<string, number>>({});
   const [ttydUrl, setTtydUrl] = useState<string | null>(null);
 
+  const plannerVisible = plannerStatus !== "stopped" || Boolean(logs[ORGANIZATION_PLANNER_AGENT_ID]?.length);
+  const terminalAgents: Agent[] = useMemo(() => {
+    const plannerAgent: Agent = {
+      id: ORGANIZATION_PLANNER_AGENT_ID,
+      name: "Org Planner",
+      type: "claude",
+      mode: "exec",
+      permissionPolicy: "safe-auto",
+      command: "claude",
+      args: ["-p"],
+      workingDirectory: "",
+      role: "Organization planner",
+      systemPrompt: "",
+      status: plannerStatus
+    };
+    return plannerVisible ? [plannerAgent, ...agents] : agents;
+  }, [agents, plannerStatus, plannerVisible]);
   const activeAgent = useMemo(
-    () => agents.find((agent) => agent.id === activeAgentId) ?? agents[0],
-    [activeAgentId, agents]
+    () => terminalAgents.find((agent) => agent.id === activeAgentId) ?? terminalAgents[0],
+    [activeAgentId, terminalAgents]
   );
   const activeIsInteractive = (activeAgent?.mode ?? "exec") === "interactive";
 
   useEffect(() => {
-    if (!activeAgentId && agents[0]) {
-      setActiveAgentId(agents[0].id);
+    if (!activeAgentId && terminalAgents[0]) {
+      setActiveAgentId(terminalAgents[0].id);
     }
-  }, [activeAgentId, agents]);
+  }, [activeAgentId, terminalAgents]);
 
   useEffect(() => {
     if (!activeIsInteractive) {
@@ -106,7 +125,7 @@ export default function TerminalPanel(): ReactElement {
 
   const handleTabClick = (agentId: string): void => {
     setActiveAgentId(agentId);
-    const target = agents.find((agent) => agent.id === agentId);
+    const target = terminalAgents.find((agent) => agent.id === agentId);
     if ((target?.mode ?? "exec") === "interactive") {
       void window.mao.tmux.selectWindow(agentId);
     }
@@ -116,10 +135,10 @@ export default function TerminalPanel(): ReactElement {
     <section className="h-full bg-brand-surface/95">
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex items-center gap-1 overflow-x-auto border-b border-brand-line px-3 py-2">
-          {agents.length === 0 ? (
+          {terminalAgents.length === 0 ? (
             <span className="text-xs text-brand-textDim">{t.terminal.noSessions}</span>
           ) : null}
-          {agents.map((agent) => (
+          {terminalAgents.map((agent) => (
             <button
               key={agent.id}
               type="button"
@@ -141,6 +160,7 @@ export default function TerminalPanel(): ReactElement {
               <button
                 type="button"
                 onClick={() => void window.mao.pty.write(activeAgent.id, "\x03")}
+                disabled={activeAgent.id === ORGANIZATION_PLANNER_AGENT_ID}
                 title={t.terminal.ctrlCTooltip}
                 className="rounded border border-brand-line px-2 py-1 text-[11px] text-brand-textDim hover:bg-brand-surfaceHi hover:text-brand-text"
               >
@@ -149,7 +169,10 @@ export default function TerminalPanel(): ReactElement {
               <button
                 type="button"
                 onClick={() => void window.mao.pty.kill(activeAgent.id)}
-                disabled={activeAgent.status !== "running" && activeAgent.status !== "starting"}
+                disabled={
+                  activeAgent.id === ORGANIZATION_PLANNER_AGENT_ID ||
+                  (activeAgent.status !== "running" && activeAgent.status !== "starting")
+                }
                 title={t.terminal.stopTooltip}
                 className="rounded bg-brand-ember px-2.5 py-1 text-[11px] font-medium text-brand-bg hover:opacity-90 disabled:cursor-not-allowed disabled:bg-brand-surfaceHi disabled:text-brand-textDim"
               >

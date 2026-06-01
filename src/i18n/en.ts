@@ -113,6 +113,13 @@ export const en = {
     stopTask: "Stop Task",
     stopTaskTooltip: "Cancel the running task and kill all in-flight agents"
   },
+  organization: {
+    changed: "Organization changed",
+    activeAgents: (n: number) => `${n} active reachable agent(s)`,
+    save: "Save Organization",
+    saving: "Saving...",
+    saveError: "Failed to save organization."
+  },
   permission: {
     tag: "Permission",
     body: (tool: string) => `requests permission to use ${tool}`,

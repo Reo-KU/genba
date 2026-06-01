@@ -7,13 +7,17 @@ import type {
   AgentRunRequest,
   AgentRunResult,
   AgentSummary,
+  ActiveOrganization,
   ContextSnapshot,
   GraphEdge,
   GraphNode,
+  OrganizationSaveRequest,
+  OrganizationSaveResult,
   Task,
   TaskState
 } from "../types";
 import { detectInitialLocale, setStoredLocale } from "../i18n";
+import { buildActiveOrganization } from "../utils/organization";
 import { parseToBlocks, type ToBlock } from "../utils/parseToBlocks";
 
 type TaskMode = "manual" | "auto";
@@ -43,6 +47,12 @@ const fallbackMao = {
     loadSummary: async (): Promise<string> => "",
     saveSummary: async (_text: string): Promise<void> => undefined
   },
+  organization: {
+    save: async (request: OrganizationSaveRequest): Promise<OrganizationSaveResult> => ({
+      organization: buildActiveOrganization(request),
+      briefs: []
+    })
+  },
   graph: {
     load: async (): Promise<GraphSnapshot> => ({ nodes: [], edges: [] }),
     save: async (): Promise<void> => undefined
@@ -64,6 +74,7 @@ const fallbackMao = {
 };
 
 const mao = () => window.mao ?? fallbackMao;
+export const ORGANIZATION_PLANNER_AGENT_ID = "__mao_org_planner__";
 
 const createId = (prefix: string): string =>
   `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -101,6 +112,85 @@ const submitToAgent = async (agentId: string, payload: string): Promise<void> =>
 const getDispatchKey = (block: ToBlock): string => `${block.agentId ?? "_"}::${block.body}`;
 
 type TreeNode = { agent: Agent; children: TreeNode[] };
+type ExecutionReport = {
+  agentId: string;
+  agentName: string;
+  receivedBody: string;
+  lastMessage: string;
+  artifacts: string[];
+  elapsedMs: number;
+  emittedDispatches: Array<{ to: string; body: string }>;
+};
+type ExecuteOptions = {
+  reviewDepth?: number;
+  managerReview?: boolean;
+};
+
+const extractArtifactPaths = (text: string): string[] => {
+  const matches = text.match(/(?:^|\s)(?:\.\/)?mao_artifacts\/[^\s"'`<>),]+/g) ?? [];
+  return [...new Set(matches.map((item) => item.trim().replace(/^\.\//, "")))];
+};
+
+const truncateForReview = (text: string, max = 1800): string =>
+  text.length > max ? `${text.slice(0, max)}\n...` : text;
+
+function buildManagerReviewBody(
+  agent: Agent,
+  taskState: TaskState,
+  currentBody: string,
+  childReports: ExecutionReport[],
+  locale: AgentLocale
+): string {
+  const reportLines = childReports.map((report, index) => {
+    const artifacts = report.artifacts.length > 0 ? report.artifacts.join(", ") : locale === "ja" ? "なし" : "none";
+    const labels = locale === "ja"
+      ? { request: "依頼", artifacts: "成果物", report: "完了報告" }
+      : { request: "Request", artifacts: "Artifacts", report: "Completion report" };
+    return [
+      `## ${index + 1}. ${report.agentName}`,
+      `${labels.request}: ${truncateForReview(report.receivedBody, 700)}`,
+      `${labels.artifacts}: ${artifacts}`,
+      `${labels.report}:`,
+      truncateForReview(report.lastMessage)
+    ].join("\n");
+  });
+
+  if (locale === "ja") {
+    return [
+      `${agent.name} として、下流メンバーの完了報告を確認してください。`,
+      "",
+      `元の依頼: ${taskState.originalBody}`,
+      "",
+      `今回あなたが下流へ渡した依頼: ${currentBody}`,
+      "",
+      "下流からの完了報告:",
+      reportLines.join("\n\n"),
+      "",
+      "判断してください。",
+      "- 基準を満たしている場合: 成果を統合し、上流またはユーザーへ提出できる短い報告を書いてください。",
+      "- 不足がある場合: 不足点を具体化し、再依頼する相手ごとに「相手名: 依頼文」の行を書いてください。必要な相手だけで構いません。",
+      "- ファイル成果物がある場合は保存先を含めてください。",
+      "- 再依頼がない場合は .mao/dispatches.txt は作らず、通常の完了報告だけを返してください。"
+    ].join("\n");
+  }
+
+  return [
+    `Act as ${agent.name} and review the completion reports from your downstream members.`,
+    "",
+    `Original user request: ${taskState.originalBody}`,
+    "",
+    `Your delegated request: ${currentBody}`,
+    "",
+    "Downstream completion reports:",
+    reportLines.join("\n\n"),
+    "",
+    "Decide what happens next.",
+    "- If the result meets the standard, integrate the work and write a concise report suitable for your upstream manager or the user.",
+    "- If something is missing, write redispatch lines as \"recipient name: concrete request\" for only the people who need more work.",
+    "- Include saved artifact paths when files were created.",
+    "- If no redispatch is needed, do not create .mao/dispatches.txt; just return the completion report."
+  ].join("\n");
+}
 
 function buildDescendantTree(
   rootAgentId: string,
@@ -258,6 +348,12 @@ type AppState = {
   dispatchMode: TaskMode;
   runningTaskId: string | null;
   introducedAgents: Set<string>;
+  organizationDirty: boolean;
+  organizationSaving: boolean;
+  organizationError: string | null;
+  activeOrganization: ActiveOrganization | null;
+  organizationBriefs: Record<string, string>;
+  plannerStatus: Agent["status"];
   locale: AgentLocale;
   setLocale: (locale: AgentLocale) => void;
   loadAll: () => Promise<void>;
@@ -276,6 +372,7 @@ type AppState = {
   ensureAgentReady: (agentId: string) => Promise<void>;
   startAgent: (agentId: string) => Promise<void>;
   stopAgent: (agentId: string) => Promise<void>;
+  saveOrganization: () => Promise<void>;
   runTask: (input: { title: string; body: string; mode: TaskMode }) => Promise<void>;
   dispatchToAgent: (agentId: string, body: string, pendingId?: string) => Promise<void>;
   cancelCurrentTask: () => Promise<void>;
@@ -298,6 +395,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   terminalDrawerOpen: false,
   setTerminalDrawerOpen: (open) => set({ terminalDrawerOpen: open }),
   introducedAgents: new Set<string>(),
+  organizationDirty: true,
+  organizationSaving: false,
+  organizationError: null,
+  activeOrganization: null,
+  organizationBriefs: {},
+  plannerStatus: "stopped",
   locale: detectInitialLocale(),
 
   setLocale: (locale) => {
@@ -311,6 +414,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       mao().onPtyData((event) => get().appendLog(event.agentId, event.data));
       mao().onPtyStatus((event) => {
         set((state) => {
+          if (event.agentId === ORGANIZATION_PLANNER_AGENT_ID) {
+            return { plannerStatus: event.status };
+          }
+
           const agents = state.agents.map((agent) =>
             agent.id === event.agentId ? { ...agent, status: event.status } : agent
           );
@@ -324,7 +431,14 @@ export const useAppStore = create<AppState>((set, get) => ({
             introducedAgents.delete(event.agentId);
           }
 
-          return { agents, introducedAgents };
+          return {
+            agents,
+            introducedAgents,
+            organizationDirty:
+              event.status === "running" || event.status === "stopped" || event.status === "error"
+                ? true
+                : state.organizationDirty
+          };
         });
       });
     }
@@ -349,7 +463,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       edges: graph.edges,
       tasks,
       selectedNodeId: rootNode?.id ?? null,
-      rootNodeId: rootNode?.id ?? null
+      rootNodeId: rootNode?.id ?? null,
+      organizationDirty: true
     });
 
     if (missingNodes.length > 0 || (rootNode && !graph.nodes.some((node) => node.isRoot))) {
@@ -371,7 +486,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         nodes,
         rootNodeId: state.rootNodeId ?? node?.id ?? null,
         selectedNodeId: state.selectedNodeId ?? node?.id ?? null,
-        selectedAgentId: state.selectedAgentId ?? savedAgent.id
+        selectedAgentId: state.selectedAgentId ?? savedAgent.id,
+        organizationDirty: true
       };
     });
     saveGraphDebounced({ nodes: get().nodes, edges: get().edges });
@@ -380,7 +496,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   updateAgent: async (agent) => {
     const savedAgent = await mao().agent.save(agent);
     set((state) => ({
-      agents: state.agents.map((item) => (item.id === savedAgent.id ? savedAgent : item))
+      agents: state.agents.map((item) => (item.id === savedAgent.id ? savedAgent : item)),
+      organizationDirty: true
     }));
   },
 
@@ -402,7 +519,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         rootNodeId: rootNode?.id ?? null,
         selectedNodeId: state.selectedNodeId && removedNodeIds.has(state.selectedNodeId) ? rootNode?.id ?? null : state.selectedNodeId,
         selectedAgentId: state.selectedAgentId === agentId ? null : state.selectedAgentId,
-        logs: Object.fromEntries(Object.entries(state.logs).filter(([id]) => id !== agentId))
+        logs: Object.fromEntries(Object.entries(state.logs).filter(([id]) => id !== agentId)),
+        organizationDirty: true
       };
     });
     saveGraphDebounced({ nodes: get().nodes, edges: get().edges });
@@ -415,7 +533,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         nodes: [...state.nodes, node],
         rootNodeId: state.rootNodeId ?? node.id,
         selectedNodeId: node.id,
-        selectedAgentId: agentId
+        selectedAgentId: agentId,
+        organizationDirty: true
       };
     });
     saveGraphDebounced({ nodes: get().nodes, edges: get().edges });
@@ -423,7 +542,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   updateNodePosition: (nodeId, position) => {
     set((state) => ({
-      nodes: state.nodes.map((node) => (node.id === nodeId ? { ...node, position } : node))
+      nodes: state.nodes.map((node) => (node.id === nodeId ? { ...node, position } : node)),
+      organizationDirty: true
     }));
     saveGraphDebounced({ nodes: get().nodes, edges: get().edges });
   },
@@ -443,7 +563,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             ? rootNode
               ? state.nodes.find((node) => node.id === rootNode.id)?.agentId ?? null
               : null
-            : state.selectedAgentId
+            : state.selectedAgentId,
+        organizationDirty: true
       };
     });
     saveGraphDebounced({ nodes: get().nodes, edges: get().edges });
@@ -460,7 +581,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         return state;
       }
       return {
-        edges: [...state.edges, { id: `edge_${source}_${target}_${Date.now()}`, source, target }]
+        edges: [...state.edges, { id: `edge_${source}_${target}_${Date.now()}`, source, target }],
+        organizationDirty: true
       };
     });
     saveGraphDebounced({ nodes: get().nodes, edges: get().edges });
@@ -468,7 +590,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   removeEdge: async (edgeId) => {
     set((state) => ({
-      edges: state.edges.filter((edge) => edge.id !== edgeId)
+      edges: state.edges.filter((edge) => edge.id !== edgeId),
+      organizationDirty: true
     }));
     saveGraphDebounced({ nodes: get().nodes, edges: get().edges });
   },
@@ -478,7 +601,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       nodes: state.nodes.map((node) => ({ ...node, isRoot: node.id === nodeId })),
       rootNodeId: nodeId,
       selectedNodeId: nodeId,
-      selectedAgentId: state.nodes.find((node) => node.id === nodeId)?.agentId ?? state.selectedAgentId
+      selectedAgentId: state.nodes.find((node) => node.id === nodeId)?.agentId ?? state.selectedAgentId,
+      organizationDirty: true
     }));
     saveGraphDebounced({ nodes: get().nodes, edges: get().edges });
   },
@@ -515,44 +639,34 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
 
-    const wasRunning = agent.status === "running";
-    if (!wasRunning) {
+    if (agent.status !== "running") {
       set((current) => ({
         agents: current.agents.map((item) =>
           item.id === agentId ? { ...item, status: "starting" } : item
         )
       }));
+    }
 
-      const result = await mao().pty.spawn(agentId);
-      if (!result.ok) {
-        set((current) => ({
-          agents: current.agents.map((item) =>
-            item.id === agentId ? { ...item, status: "error" } : item
-          )
-        }));
-        throw new Error(result.error);
-      }
+    const result = await mao().pty.spawn(agentId);
+    if (!result.ok) {
+      set((current) => ({
+        agents: current.agents.map((item) =>
+          item.id === agentId ? { ...item, status: "error" } : item
+        )
+      }));
+      throw new Error(result.error);
+    }
 
+    if (agent.status !== "running") {
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
 
-    const latest = get();
-    if (latest.introducedAgents.has(agentId)) {
-      return;
-    }
-
-    const latestAgent = latest.agents.find((item) => item.id === agentId) ?? agent;
-    const intro = buildAgentIntro(latestAgent, latest.agents, latest.nodes, latest.edges);
-    const systemPromptPart = latestAgent.systemPrompt ? `\n\n${latestAgent.systemPrompt}` : "";
-    const payload = intro + systemPromptPart;
-
-    if (payload.trim().length > 0) {
-      await submitToAgent(agentId, payload);
-      await new Promise((resolve) => setTimeout(resolve, 4000));
-    }
-
+    // 旧 buildAgentIntro による heavy 初期化メッセージは廃止。
+    // 各タスクは agentRunner.runInteractive 経由で適切な natural-language プロンプトを受け取る。
+    // claude TUI は heavy 初期化を injection と判定する問題があったため、PTY 起動だけで終了。
     set((current) => ({
-      introducedAgents: new Set([...current.introducedAgents, agentId])
+      introducedAgents: new Set([...current.introducedAgents, agentId]),
+      organizationDirty: true
     }));
   },
 
@@ -575,8 +689,38 @@ export const useAppStore = create<AppState>((set, get) => ({
         agent.id === agentId ? { ...agent, status: "stopped" } : agent
       ),
       introducedAgents: new Set([...state.introducedAgents].filter((id) => id !== agentId)),
-      logs: { ...state.logs, [agentId]: [] }
+      logs: { ...state.logs, [agentId]: [] },
+      organizationDirty: true
     }));
+  },
+
+  saveOrganization: async () => {
+    const state = get();
+    set({ organizationSaving: true, organizationError: null });
+
+    try {
+      const graph = { nodes: state.nodes, edges: state.edges };
+      await mao().graph.save(graph);
+
+      const result = await mao().organization.save({
+        agents: state.agents,
+        nodes: state.nodes,
+        edges: state.edges,
+        rootNodeId: state.rootNodeId,
+        locale: state.locale
+      });
+
+      set({
+        activeOrganization: result.organization,
+        organizationBriefs: Object.fromEntries(result.briefs.map((brief) => [brief.agentId, brief.content])),
+        organizationDirty: false,
+        organizationSaving: false
+      });
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Failed to save organization.";
+      set({ organizationSaving: false, organizationError: message });
+      throw caught;
+    }
   },
 
   runTask: async ({ title, body, mode: dispatchMode }) => {
@@ -721,17 +865,22 @@ async function buildContextSnapshot(
   taskState: TaskState
 ): Promise<ContextSnapshot> {
   const state = useAppStore.getState();
-  const [projectSummary, agentSummary] = await Promise.all([
-    mao().project.loadSummary(),
-    mao().agent.loadSummary(agentId)
-  ]);
+  const agentSummary = await mao().agent.loadSummary(agentId);
+  const organization = buildActiveOrganization({
+    agents: state.agents,
+    nodes: state.nodes,
+    edges: state.edges,
+    rootNodeId: state.rootNodeId,
+    locale: state.locale
+  });
+  const activeAgentIds = new Set(organization.members.map((member) => member.id));
 
   return {
     taskState,
-    projectSummary: projectSummary ?? "",
+    projectSummary: "",
     agentSummary: agentSummary ?? null,
     graph: {
-      nodes: state.nodes.map((node) => {
+      nodes: state.nodes.filter((node) => activeAgentIds.has(node.agentId)).map((node) => {
         const agent = state.agents.find((item) => item.id === node.agentId);
         return {
           agentId: node.agentId,
@@ -740,12 +889,9 @@ async function buildContextSnapshot(
           isRoot: node.isRoot
         };
       }),
-      edges: state.edges.map((edge) => {
-        const source = state.nodes.find((node) => node.id === edge.source)?.agentId;
-        const target = state.nodes.find((node) => node.id === edge.target)?.agentId;
-        return { source: source ?? "", target: target ?? "" };
-      })
+      edges: organization.edges
     },
+    organizationBrief: state.organizationBriefs[agentId] ?? "",
     locale: state.locale
   };
 }
@@ -756,36 +902,43 @@ async function executeForAgent(
   taskState: TaskState,
   dispatchMode: TaskMode,
   setState: typeof useAppStore.setState,
-  getState: typeof useAppStore.getState
-): Promise<void> {
+  getState: typeof useAppStore.getState,
+  options: ExecuteOptions = {}
+): Promise<ExecutionReport | null> {
   if (cancelledTaskIds.has(taskState.taskId)) {
-    return;
+    return null;
   }
 
   const state = getState();
   const agent = state.agents.find((item) => item.id === agentId);
   if (!agent) {
-    return;
+    return null;
   }
 
   const context = await buildContextSnapshot(agentId, taskState);
   if (cancelledTaskIds.has(taskState.taskId)) {
-    return;
+    return null;
   }
 
+  // この agent が子を持つなら router として 1 ターン exec で呼ぶ。
+  // boss/agent.mode に関わらず stateless な exec 呼び出し (= TUI セッションは作らない)。
+  // 子が居なければ通常の run/runInteractive (agent.mode に従う)。
+  const hasChildren = (context.graph?.edges ?? []).some((edge) => edge.source === agentId);
   const result = await mao().agent.run({
     agentId,
     body,
     taskId: taskState.taskId,
-    context
+    context,
+    routerCall: hasChildren,
+    managerReview: options.managerReview
   });
   if (cancelledTaskIds.has(taskState.taskId)) {
-    return;
+    return null;
   }
 
   if (!result.ok) {
     getState().appendLog(agentId, `\n[MAO ERROR] ${result.error}\n`);
-    return;
+    return null;
   }
 
   const latestAgents = getState().agents;
@@ -810,6 +963,16 @@ async function executeForAgent(
     elapsedMs: result.elapsedMs
   });
 
+  const report: ExecutionReport = {
+    agentId,
+    agentName: agent.name,
+    receivedBody: body,
+    lastMessage: result.lastMessage,
+    artifacts: extractArtifactPaths(result.lastMessage),
+    elapsedMs: result.elapsedMs,
+    emittedDispatches: emitted
+  };
+
   for (const item of emitted) {
     taskState.dispatchHistory.push({
       taskId: taskState.taskId,
@@ -823,29 +986,74 @@ async function executeForAgent(
   const validBlocks = blocks.filter(
     (block): block is ToBlock & { agentId: string } => Boolean(block.agentId)
   );
-  if (validBlocks.length === 0) {
-    return;
+  const organization = buildActiveOrganization({
+    agents: getState().agents,
+    nodes: getState().nodes,
+    edges: getState().edges,
+    rootNodeId: getState().rootNodeId,
+    locale: getState().locale
+  });
+  const member = organization.members.find((item) => item.id === agentId);
+  const allowedTargetIds = new Set([
+    ...(member?.directUpstream ?? []).map((item) => item.id),
+    ...(member?.directDownstream ?? []).map((item) => item.id),
+    ...(member?.peers ?? []).map((item) => item.id)
+  ]);
+  const routableBlocks = validBlocks.filter((block) => allowedTargetIds.has(block.agentId));
+
+  if (routableBlocks.length === 0) {
+    return report;
   }
 
   if (cancelledTaskIds.has(taskState.taskId)) {
-    return;
+    return report;
   }
 
   if (dispatchMode === "auto") {
-    await Promise.all(
-      validBlocks.map((block) => {
+    const childReports = (await Promise.all(
+      routableBlocks.map((block) => {
         if (cancelledTaskIds.has(taskState.taskId)) {
-          return Promise.resolve();
+          return Promise.resolve(null);
         }
         console.info("[MAO auto-dispatch]", { to: block.agentId, bodyHead: block.body.slice(0, 50) });
-        return executeForAgent(block.agentId, block.body, taskState, dispatchMode, setState, getState);
+        return executeForAgent(block.agentId, block.body, taskState, dispatchMode, setState, getState, {
+          reviewDepth: options.reviewDepth ?? 0
+        });
       })
-    );
-    return;
+    )).filter((item): item is ExecutionReport => Boolean(item));
+
+    const shouldReview =
+      childReports.length > 0 &&
+      hasChildren &&
+      !options.managerReview &&
+      (options.reviewDepth ?? 0) < 1 &&
+      !cancelledTaskIds.has(taskState.taskId);
+
+    if (shouldReview) {
+      const reviewBody = buildManagerReviewBody(
+        agent,
+        taskState,
+        body,
+        childReports,
+        getState().locale
+      );
+      const reviewReport = await executeForAgent(
+        agentId,
+        reviewBody,
+        taskState,
+        dispatchMode,
+        setState,
+        getState,
+        { reviewDepth: (options.reviewDepth ?? 0) + 1, managerReview: true }
+      );
+      return reviewReport ?? report;
+    }
+
+    return report;
   }
 
   setState((current) => {
-    const additions = validBlocks.map((block) => ({
+    const additions = routableBlocks.map((block) => ({
       ...block,
       id: createId("pending"),
       taskId: taskState.taskId
@@ -859,4 +1067,5 @@ async function executeForAgent(
       ]
     };
   });
+  return report;
 }

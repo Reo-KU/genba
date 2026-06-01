@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import fs from "fs-extra";
+import { spawn as cpSpawn } from "node:child_process";
 import { join } from "node:path";
 import { z } from "zod";
 import type {
@@ -8,10 +9,13 @@ import type {
   AgentRunRequest,
   AgentRunResult,
   AgentSummary,
+  OrganizationBrief,
   GraphEdge,
   GraphNode,
   IpcChannels,
   InstallResult,
+  OrganizationSaveRequest,
+  OrganizationSaveResult,
   PermissionDecision,
   Task
 } from "../src/types";
@@ -24,6 +28,7 @@ import {
   WORKSPACE_ROOT
 } from "../src/utils/storage";
 import { maskSecrets } from "../src/utils/maskSecrets";
+import { buildActiveOrganization, buildOrganizationInstruction } from "../src/utils/organization";
 import { AgentRunner } from "./agentRunner";
 import { Installer } from "./installer";
 import { MCPPermissionServer } from "./mcpPermissionServer";
@@ -31,6 +36,7 @@ import { createShellTestAgent, PtyManager } from "./ptyManager";
 import { runSetupCheck } from "./systemCheck";
 import { TmuxManager } from "./tmuxManager";
 import { TtydManager } from "./ttydManager";
+import { ensureMaoGitignore } from "./workspaceGuard";
 
 const agentSchema = z.object({
   id: z.string(),
@@ -87,6 +93,7 @@ const installer = new Installer();
 const agentRunner = new AgentRunner();
 agentRunner.setPtyManager(tmuxManager);
 const mcpPermissionServer = new MCPPermissionServer();
+const PLANNER_AGENT_ID = "__mao_org_planner__";
 let didRunSmokeTest = false;
 let didStartTtyd = false;
 const writeLocks = new Map<string, Promise<void>>();
@@ -160,6 +167,152 @@ const readGraph = (): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> =>
   readValidatedJson(GRAPH_JSON_PATH, graphSchema, { nodes: [], edges: [] });
 const readTasks = (): Promise<Task[]> => readValidatedJson(TASKS_JSON_PATH, tasksSchema, []);
 
+const extractJsonArray = (value: string): unknown => {
+  const trimmed = value.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const start = trimmed.indexOf("[");
+    const end = trimmed.lastIndexOf("]");
+    if (start >= 0 && end > start) {
+      return JSON.parse(trimmed.slice(start, end + 1));
+    }
+    throw new Error("Planner output did not contain a JSON array.");
+  }
+};
+
+const briefSchema = z.object({
+  agentId: z.string(),
+  content: z.string()
+});
+
+const broadcastPlannerData = (data: string): void => {
+  const maskedData = maskSecrets(data);
+  for (const browserWindow of BrowserWindow.getAllWindows()) {
+    browserWindow.webContents.send("mao:pty:data", { agentId: PLANNER_AGENT_ID, data: maskedData });
+  }
+};
+
+const broadcastPlannerStatus = (status: Agent["status"]): void => {
+  for (const browserWindow of BrowserWindow.getAllWindows()) {
+    browserWindow.webContents.send("mao:pty:status", { agentId: PLANNER_AGENT_ID, status });
+  }
+};
+
+const buildPlannerPrompt = (request: OrganizationSaveRequest, fallbackBriefs: OrganizationBrief[]): string => {
+  const agentSummaries = request.agents.map((agent) => ({
+    id: agent.id,
+    name: agent.name,
+    type: agent.type,
+    roleLabel: agent.role,
+    mode: agent.mode ?? "exec",
+    status: agent.status
+  }));
+  return [
+    "You are an independent organization-design planner for a multi-agent desktop orchestrator.",
+    "The user drew a graph of active AI agents. Create one concise working brief per active agent.",
+    "Use ordinary company/team language. Do not write security, prompt-injection, hidden-instruction, system-prompt, policy, or compliance wording.",
+    "Do not invent agents. Do not change graph structure. Do not include project background unless it is visible in agent names or role labels.",
+    "Return JSON only: an array of objects with {\"agentId\":\"...\",\"content\":\"...\"}.",
+    "Each content should include: job title, responsibility, manager/upstream, direct reports/downstream, peers, and reporting style.",
+    "For agents with direct reports, describe the management loop: assign work downstream, receive completion reports, judge whether the result satisfies the task, then either revise and reassign or summarize and report upstream.",
+    "For agents with a manager/upstream, describe that completed work should be reported upward with a short outcome, key evidence, and saved artifact paths when files were created.",
+    "Keep each content under 180 words.",
+    "",
+    "Agents:",
+    JSON.stringify(agentSummaries, null, 2),
+    "",
+    "Active organization:",
+    JSON.stringify(fallbackBriefs.map((brief) => ({
+      agentId: brief.agentId,
+      agentName: brief.agentName,
+      fallbackContent: brief.content
+    })), null, 2)
+  ].join("\n");
+};
+
+const planOrganizationBriefs = async (
+  request: OrganizationSaveRequest,
+  fallbackBriefs: OrganizationBrief[]
+): Promise<OrganizationBrief[]> => {
+  if (fallbackBriefs.length === 0) {
+    return [];
+  }
+
+  try {
+    const prompt = buildPlannerPrompt(request, fallbackBriefs);
+    broadcastPlannerStatus("starting");
+    broadcastPlannerData("\n[Org Planner] Generating organization briefs with claude -p...\n");
+    const stdout = await new Promise<string>((resolve, reject) => {
+      const proc = cpSpawn("claude", ["-p", prompt], {
+        cwd: WORKSPACE_ROOT,
+        stdio: ["ignore", "pipe", "pipe"]
+      });
+      let output = "";
+      const timeout = setTimeout(() => {
+        proc.kill();
+        reject(new Error("Organization planner timed out after 90s."));
+      }, 90_000);
+
+      broadcastPlannerStatus("running");
+
+      proc.stdout?.on("data", (chunk: Buffer) => {
+        const text = chunk.toString("utf8");
+        output += text;
+        broadcastPlannerData(text);
+      });
+      proc.stderr?.on("data", (chunk: Buffer) => {
+        broadcastPlannerData(chunk.toString("utf8"));
+      });
+      proc.on("error", (error) => {
+        clearTimeout(timeout);
+        broadcastPlannerStatus("error");
+        reject(error);
+      });
+      proc.on("exit", (code) => {
+        clearTimeout(timeout);
+        broadcastPlannerStatus(code === 0 ? "stopped" : "error");
+        if (code === 0) {
+          resolve(output);
+        } else {
+          reject(new Error(`Organization planner exited with code ${code ?? "null"}.`));
+        }
+      });
+    });
+    const raw = extractJsonArray(stdout);
+    const parsed = z.array(briefSchema).parse(raw);
+    const plannedByAgentId = new Map(parsed.map((brief) => [brief.agentId, brief.content.trim()]));
+
+    return fallbackBriefs.map((brief) => ({
+      ...brief,
+      content: plannedByAgentId.get(brief.agentId) || brief.content
+    }));
+  } catch (error) {
+    broadcastPlannerData(`\n[Org Planner] Falling back to deterministic briefs: ${error instanceof Error ? error.message : String(error)}\n`);
+    broadcastPlannerStatus("error");
+    console.warn("[organization planner] Falling back to deterministic briefs:", error);
+    return fallbackBriefs;
+  }
+};
+
+const clearOrganizationFiles = async (request: OrganizationSaveRequest): Promise<void> => {
+  await fs.remove(join(WORKSPACE_ROOT, "organization.json")).catch(() => undefined);
+  await fs.remove(join(WORKSPACE_ROOT, "organization_briefs.json")).catch(() => undefined);
+
+  const workingDirectories = [
+    ...new Set(
+      request.agents
+        .map((agent) => agent.workingDirectory)
+        .filter((workingDirectory) => workingDirectory.trim().length > 0)
+    )
+  ];
+
+  for (const workingDirectory of workingDirectories) {
+    await fs.remove(join(workingDirectory, ".mao", "briefs")).catch(() => undefined);
+    await fs.remove(join(workingDirectory, ".mao", "instructions")).catch(() => undefined);
+  }
+};
+
 const registerIpcHandlers = (): void => {
   ipcMain.handle("mao:agent:list" satisfies keyof IpcChannels, async (): ReturnType<IpcChannels["mao:agent:list"]> => {
     return readAgents();
@@ -211,16 +364,18 @@ const registerIpcHandlers = (): void => {
         return { ok: false, error: `Agent not found: ${request.agentId}` } satisfies AgentRunResult;
       }
 
-      const mode = agent.mode ?? "exec";
-      if (mode === "exec") {
+      // agent.mode を尊重 (interactive boss も router として使える)。
+      // routerCall は prompt builder 側で natural-language を出す hint として残す。
+      const effectiveMode = agent.mode ?? "exec";
+      if (effectiveMode === "exec") {
         return agentRunner.run(request, agent);
       }
 
-      if (mode === "interactive") {
+      if (effectiveMode === "interactive") {
         return agentRunner.runInteractive(request, agent);
       }
 
-      return { ok: false, error: `Unknown mode: ${mode}` } satisfies AgentRunResult;
+      return { ok: false, error: `Unknown mode: ${effectiveMode}` } satisfies AgentRunResult;
     }
   );
 
@@ -298,6 +453,34 @@ const registerIpcHandlers = (): void => {
     async (_event, text: string): ReturnType<IpcChannels["mao:project:saveSummary"]> => {
       await fs.ensureDir(WORKSPACE_ROOT);
       await fs.writeFile(PROJECT_SUMMARY_PATH, text, "utf8");
+    }
+  );
+
+  ipcMain.handle(
+    "mao:organization:save" satisfies keyof IpcChannels,
+    async (_event, request: OrganizationSaveRequest): ReturnType<IpcChannels["mao:organization:save"]> => {
+      const organization = buildActiveOrganization(request);
+      const fallbackBriefs = organization.members
+        .map((member) => buildOrganizationInstruction(organization, member.id))
+        .filter((item): item is NonNullable<typeof item> => Boolean(item));
+      const briefs = await planOrganizationBriefs(request, fallbackBriefs);
+
+      await fs.ensureDir(WORKSPACE_ROOT);
+      await clearOrganizationFiles(request);
+      await fs.writeJson(join(WORKSPACE_ROOT, "organization.json"), organization, { spaces: 2 });
+      await fs.writeJson(join(WORKSPACE_ROOT, "organization_briefs.json"), briefs, { spaces: 2 });
+
+      for (const brief of briefs) {
+        await fs.ensureDir(join(brief.workingDirectory, ".mao", "briefs"));
+        await ensureMaoGitignore(brief.workingDirectory);
+        await fs.writeFile(
+          join(brief.workingDirectory, brief.relativePath),
+          brief.content,
+          "utf8"
+        );
+      }
+
+      return { organization, briefs } satisfies OrganizationSaveResult;
     }
   );
 

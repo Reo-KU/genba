@@ -3,8 +3,8 @@ import AgentForm from "./components/AgentForm";
 import GearMenu from "./components/GearMenu";
 import InspectorPopover from "./components/InspectorPopover";
 import MindMapCanvas from "./components/MindMapCanvas";
+import OrganizationBar from "./components/OrganizationBar";
 import PermissionDialog from "./components/PermissionDialog";
-import ProjectSummaryModal from "./components/ProjectSummaryModal";
 import SetupCheckModal from "./components/SetupCheckModal";
 import TaskInput from "./components/TaskInput";
 import TerminalDrawer from "./components/TerminalDrawer";
@@ -16,7 +16,6 @@ export default function App(): ReactElement {
   const selectedAgentId = useAppStore((state) => state.selectedAgentId);
   const locale = useAppStore((state) => state.locale);
   const setLocale = useAppStore((state) => state.setLocale);
-  const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [agentFormOpen, setAgentFormOpen] = useState(false);
   const [setupModalOpen, setSetupModalOpen] = useState(false);
   const [setupResult, setSetupResult] = useState<SetupCheckResult | null>(null);
@@ -68,9 +67,9 @@ export default function App(): ReactElement {
   return (
     <div className="fixed inset-0 overflow-hidden bg-brand-bg text-brand-text">
       <MindMapCanvas />
+      <OrganizationBar />
 
       <GearMenu
-        onOpenProjectSummary={() => setProjectModalOpen(true)}
         onOpenSetup={openSetup}
         locale={locale}
         onLocaleChange={setLocale}
@@ -89,7 +88,6 @@ export default function App(): ReactElement {
       <TaskInput />
       <TerminalDrawer />
 
-      {projectModalOpen ? <ProjectSummaryModal onClose={() => setProjectModalOpen(false)} /> : null}
       {showSetupModal && setupResult ? (
         <SetupCheckModal
           result={setupResult}

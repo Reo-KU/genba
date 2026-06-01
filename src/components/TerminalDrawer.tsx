@@ -1,41 +1,20 @@
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, type ReactElement } from "react";
 import TerminalPanel from "./TerminalPanel";
 import { useAppStore } from "../store/useAppStore";
 
 export default function TerminalDrawer(): ReactElement {
   const open = useAppStore((state) => state.terminalDrawerOpen);
-  const setOpenStore = useAppStore((state) => state.setTerminalDrawerOpen);
-  const setOpen = (value: boolean | ((current: boolean) => boolean)): void => {
-    if (typeof value === "function") {
-      setOpenStore(value(useAppStore.getState().terminalDrawerOpen));
-    } else {
-      setOpenStore(value);
-    }
-  };
-  const [userClosed, setUserClosed] = useState(false);
-  const runningTaskId = useAppStore((state) => state.runningTaskId);
-
-  // タスク実行が始まったら自動で展開 (ユーザーが明示的に閉じていない限り)
-  useEffect(() => {
-    if (runningTaskId && !userClosed) {
-      setOpen(true);
-    }
-    if (!runningTaskId) {
-      setUserClosed(false);
-    }
-  }, [runningTaskId, userClosed]);
+  const setOpen = useAppStore((state) => state.setTerminalDrawerOpen);
+  // インラインの mini terminal で各ノードが状態を表示するため、drawer は明示的に開いた時のみ。
+  // タスク実行で自動展開はしない (= マインドマップに溶け込ませる設計)
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if ((event.metaKey || event.ctrlKey) && (event.key === "j" || event.key === "J")) {
         event.preventDefault();
-        setOpen((current) => {
-          if (current) setUserClosed(true);
-          return !current;
-        });
+        setOpen(!useAppStore.getState().terminalDrawerOpen);
       } else if (event.key === "Escape") {
         setOpen(false);
-        setUserClosed(true);
       }
     };
 
@@ -44,10 +23,7 @@ export default function TerminalDrawer(): ReactElement {
   }, []);
 
   const toggle = (): void => {
-    setOpen((current) => {
-      if (current) setUserClosed(true);
-      return !current;
-    });
+    setOpen(!open);
   };
 
   return (
@@ -90,10 +66,7 @@ export default function TerminalDrawer(): ReactElement {
             </div>
             <button
               type="button"
-              onClick={() => {
-                setOpen(false);
-                setUserClosed(true);
-              }}
+              onClick={() => setOpen(false)}
               className="flex h-7 w-7 items-center justify-center rounded-full text-brand-textDim transition hover:bg-brand-surfaceHi hover:text-brand-text"
               aria-label="Close terminal"
               title="Close (Esc)"

@@ -194,16 +194,6 @@ export default function AgentForm({ agent, onClose }: AgentFormProps): ReactElem
             />
           </label>
 
-          <label className="grid gap-1 text-sm">
-            <span className="text-brand-textDim">{t.agentForm.systemPrompt}</span>
-            <textarea
-              value={draft.systemPrompt}
-              onChange={(event) => update("systemPrompt", event.target.value)}
-              className="min-h-28 rounded border border-brand-line bg-brand-bg px-3 py-2 text-brand-text outline-none focus:border-brand-sunsetA"
-              placeholder="You are responsible for..."
-            />
-          </label>
-
           {error ? <p className="text-sm text-brand-ember">{error}</p> : null}
         </div>
 

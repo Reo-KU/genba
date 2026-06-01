@@ -13,6 +13,8 @@ import type {
   PermissionRequestEvent,
   PtyDataEvent,
   PtyStatusEvent,
+  OrganizationSaveRequest,
+  OrganizationSaveResult,
   SetupCheckResult,
   Task
 } from "../src/types";
@@ -33,6 +35,10 @@ contextBridge.exposeInMainWorld("mao", {
   project: {
     loadSummary: (): Promise<string> => ipcRenderer.invoke("mao:project:loadSummary"),
     saveSummary: (text: string): Promise<void> => ipcRenderer.invoke("mao:project:saveSummary", text)
+  },
+  organization: {
+    save: (request: OrganizationSaveRequest): Promise<OrganizationSaveResult> =>
+      ipcRenderer.invoke("mao:organization:save", request)
   },
   graph: {
     load: (): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> => ipcRenderer.invoke("mao:graph:load"),

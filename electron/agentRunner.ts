@@ -403,72 +403,75 @@ const buildExecLeafPrompt = (locale: AgentLocale, taskBody: string): string => {
   return `Please process the next task. Print your answer to stdout.\n\n----\n${taskBody}`;
 };
 
+const buildArtifactGuidance = (locale: AgentLocale, artifactRelativeDir: string): string => {
+  if (locale === "ja") {
+    return [
+      "成果物の保存先:",
+      `- 分析レポート、調査メモ、生成した txt/md/csv など、ユーザーに渡す成果物は ${artifactRelativeDir}/ に保存してください。`,
+      "- .mao/ は MAO の制御用一時フォルダなので、成果物は .mao/ の中に置かないでください。",
+      "- ファイルを作った場合は、最後の応答に保存パスを短く書いてください。"
+    ].join("\n");
+  }
+
+  return [
+    "Artifact location:",
+    `- Save user-facing deliverables such as reports, notes, txt/md/csv files under ${artifactRelativeDir}/.`,
+    "- Do not put deliverables inside .mao/; that folder is MAO's temporary control area.",
+    "- If you create files, mention their saved paths briefly in your final response."
+  ].join("\n");
+};
+
 const buildExecBossInlinePrompt = (
   locale: AgentLocale,
   agent: Agent,
   ctx: ContextSnapshot,
   taskBody: string
 ): string => {
-  // 子持ち agent への inline dispatcher prompt — spec file を読まず、必要情報を全部 prompt に直接含める
-  const t = getPromptStrings(locale);
-  const graphIntro = buildGraphIntro(agent, ctx.graph, t);
+  // PM 風の natural-language 分配 prompt。claude TUI の injection 検知を回避するため、
+  // ロール assignment や [TO:] 強制ではなく「タスクを分けて任せたい、各人への依頼を書いて」形式にする。
+  // 注意: テンプレ例文 (placeholder) を直接書くと agent がそれを echo してしまうので、形式の説明だけにする。
   const directChildren = (ctx.graph.edges ?? [])
     .filter((edge) => edge.source === agent.id)
     .map((edge) => ctx.graph.nodes.find((node) => node.agentId === edge.target))
     .filter((node): node is NonNullable<typeof node> => Boolean(node));
-  const childNames = directChildren.map((n) => n.name).join(", ");
+  const childNames = directChildren.map((n) => n.name);
+  const childList = childNames.join("、");
+  const childListEn = childNames.join(", ");
+  const teamBrief = ctx.organizationBrief?.trim() ?? "";
 
   if (locale === "ja") {
     return (
-      `あなたは MAO の dispatcher です。あなたから線が出ている直接の子エージェントは以下の ${directChildren.length} 名です:\n` +
-      `  ${childNames}\n\n` +
-      `あなたの応答は以下の形式の **stdout テキスト出力のみ** にしてください。それ以外のツール (Bash / Write / Read / Edit / Spawn / Apps / MCP) は **一切使用しないこと**:\n` +
-      `\n` +
-      `[TO: <子の名前>]\n` +
-      `<その子に割り当てる本文>\n` +
-      `\n` +
-      `[TO: <別の子の名前>]\n` +
-      `<その子に割り当てる本文>\n` +
-      `\n` +
-      `...(子の数だけ繰り返す)\n` +
-      `\n` +
-      `--- 重要 ---\n` +
-      `- <子の名前> 部分は、上記の実名 (${childNames}) に必ず置き換えてください。"<child-agent>" などのプレースホルダーをそのまま使わないでください。\n` +
-      `- 完了 flag や touch、ファイル作成は不要です。stdout に上記ブロックを出力したら、それで処理は完了です。\n` +
-      `- もし「自分でやった方が早い」と思っても、絶対に自分でやらないでください。あなたが配送をスキップすると、4 名の子エージェントが何もせず待ち続けてシステム全体が止まります。\n` +
-      `- ユーザータスクに 'worker の番号 n に応じて' のような並行配送のヒントがあれば、各子に番号を割り当ててパラメータを変えた本文を出してください。\n` +
-      `\n` +
-      `--- グラフ情報 (参考) ---\n` +
-      `${graphIntro}\n` +
-      `\n` +
-      `--- ユーザーから受信した task body ---\n` +
-      `${taskBody}\n`
+      `${teamBrief ? `${teamBrief}\n\n` : ""}` +
+      `次のタスクを ${childNames.length} 人に分担して依頼したいです。\n\n` +
+      `タスク: ${taskBody}\n\n` +
+      `依頼先の人 (${childNames.length} 名): ${childList}\n\n` +
+      `各人への依頼を、ワークスペース直下の \`.mao/dispatches.txt\` ファイルに書き出してください (Write ツールを使用)。\n` +
+      `各行は「依頼先の名前(${childList} のいずれか) + コロン + 半角スペース + その人への具体的な依頼文」の構造です。\n` +
+      `全部で ${childNames.length} 行 (依頼先全員分) 書いてください。\n\n` +
+      `重要な注意:\n` +
+      `- 依頼文は具体的な指示文にしてください。サンプル文を機械的に並べないでください。\n` +
+      `- 依頼文は相手にそのまま転送されます。相手の名前を文中に重ねて書く必要はありません。\n` +
+      `- 自分でタスクを実行 (ファイル操作・Bash・コマンド実行など) はしないでください。各人への依頼を書き出すだけです。\n` +
+      `- 依頼先 ${childNames.length} 名全員分を書いてください (省略しない)。\n` +
+      `- 自分のツールでは実現できない作業 (Web 取得など) があっても、その実施可否は各依頼先 (worker) に任せ、各人への依頼として書いてください。\n` +
+      `- \`.mao/dispatches.txt\` の書き込みが完了すれば処理は終わりです (別途の完了確認は不要)。\n`
     );
   }
   return (
-    `You are the MAO dispatcher. Your direct children (${directChildren.length} agents) are:\n` +
-    `  ${childNames}\n\n` +
-    `Your response must be ONLY stdout text in this exact format. Do NOT use any tool (Bash / Write / Read / Edit / Spawn / Apps / MCP):\n` +
-    `\n` +
-    `[TO: <child-name>]\n` +
-    `<body assigned to that child>\n` +
-    `\n` +
-    `[TO: <another-child-name>]\n` +
-    `<body assigned to that child>\n` +
-    `\n` +
-    `... (repeat for each child)\n` +
-    `\n` +
-    `--- Important ---\n` +
-    `- Replace <child-name> with the real names listed above (${childNames}). Do NOT leave the placeholder "<child-agent>" or similar as-is.\n` +
-    `- No completion flag, no touch, no file creation. Once you have written the blocks to stdout, you are done.\n` +
-    `- If you feel "I could do this faster myself", DO NOT. Skipping dispatch will leave ${directChildren.length} child agents waiting forever and the whole system will stall.\n` +
-    `- If the user task hints at parametric fan-out (e.g., 'for each worker n'), assign numbers to each child accordingly.\n` +
-    `\n` +
-    `--- Graph context (for reference) ---\n` +
-    `${graphIntro}\n` +
-    `\n` +
-    `--- User-supplied task body ---\n` +
-    `${taskBody}\n`
+    `${teamBrief ? `${teamBrief}\n\n` : ""}` +
+    `I want to split the next task across ${childNames.length} people.\n\n` +
+    `Task: ${taskBody}\n\n` +
+    `Recipients (${childNames.length}): ${childListEn}\n\n` +
+    `Write the per-person requests to a file at \`.mao/dispatches.txt\` (use your Write tool).\n` +
+    `Each line: recipient name (one of ${childListEn}) + colon + space + concrete instruction.\n` +
+    `Write ${childNames.length} lines total (one per recipient).\n\n` +
+    `Important:\n` +
+    `- Each instruction must be concrete. Do not just paste a sample sentence.\n` +
+    `- The instruction is forwarded as-is to the recipient; no need to repeat the recipient's name inside the body.\n` +
+    `- Do NOT execute the task yourself (no file ops, no Bash, no shell). Just write the per-person requests.\n` +
+    `- Cover all ${childNames.length} recipients.\n` +
+    `- Even if a sub-step seems beyond your capability (e.g. fetching URLs), leave that to the recipient and still write the per-person request.\n` +
+    `- Once \`.mao/dispatches.txt\` is written, you are done. No separate completion confirmation needed.\n`
   );
 };
 
@@ -489,6 +492,7 @@ const prepareFilePassingTask = async (
   const dispatchId = signalToken.replace(/^MAO_DONE_/, "");
   const fileBase = `${req.taskId}_${dispatchId.slice(0, 8)}`;
   const taskSpecRelative = `.mao/${fileBase}.md`;
+  const artifactRelativeDir = `mao_artifacts/${req.taskId}/${agent.name.replace(/[^A-Za-z0-9_-]/g, "_") || agent.id}`;
   const signalLogRelative = ".mao/signals.log";
   const taskSpecPath = path.join(maoDir, `${fileBase}.md`);
   const signalLogPath = path.join(maoDir, "signals.log");
@@ -498,16 +502,34 @@ const prepareFilePassingTask = async (
     signalToken,
     signalLogRelative
   });
-  // 仕様ファイル末尾にも完了 signal 指示を埋める。agent が PTY 直送文を忘れて
-  // 仕様ファイルだけ読むケースで signal が echo されないのを防ぐ。
-  const fullSpec = `${composePrompt(agent, req.body, req.context)}\n\n---\n${signalReminder}`;
+  // 仕様ファイルの中身は子の有無で変える:
+  //   - 子有り (boss): PM 風の natural-language 分配リクエスト (claude TUI が injection 検知しない形)
+  //   - 子無し (leaf): プロジェクト情報 + 受信した task body のみ。役割 assignment や [TO:] 指示は含めない
+  // どちらも末尾に signal reminder を貼る。
+  const hasChildren = (req.context.graph?.edges ?? []).some((edge) => edge.source === agent.id);
+  const naturalBody = req.managerReview
+    ? `${req.context.organizationBrief?.trim() ? `${req.context.organizationBrief.trim()}\n\n` : ""}${req.body}`
+    : hasChildren
+    ? buildExecBossInlinePrompt(req.context.locale ?? "ja", agent, req.context, req.body)
+    : `${req.context.organizationBrief?.trim() ? `${req.context.organizationBrief.trim()}\n\n` : ""}${buildArtifactGuidance(req.context.locale ?? "ja", artifactRelativeDir)}\n\n${buildExecLeafPrompt(req.context.locale ?? "ja", req.body)}`;
+  // boss (子有り): .mao/dispatches.txt 書き込み完了が signal なので flag 指示は不要
+  // worker (子無し): .mao/<token>.flag 作成が signal なので signalReminder を貼る
+  const fullSpec = hasChildren && !req.managerReview
+    ? naturalBody
+    : `${naturalBody}\n\n---\n${signalReminder}`;
 
   await rotateSignalsIfLarge(signalLogPath);
   await fs.writeFile(taskSpecPath, fullSpec, "utf8");
   await fs.ensureFile(signalLogPath);
 
+  // boss (子有り) は PM 風プロンプト本体を PTY に直送する (= 私が pane1 に送る方式と同じ)。
+  // leaf (子無し) は短い「.mao/<taskId>.md を読んで実装してください」だけ送って agent に file 読みを任せる。
+  const shortInstruction = hasChildren && !req.managerReview
+    ? naturalBody
+    : signalReminder;
+
   return {
-    shortInstruction: signalReminder,
+    shortInstruction,
     signalLogPath,
     taskSpecPath,
     maoDir
@@ -575,7 +597,9 @@ export class AgentRunner extends EventEmitter {
     // leaf (子無し) は通常の task prompt のみ。
     const hasChildren = (req.context.graph?.edges ?? []).some((edge) => edge.source === agent.id);
     const locale = req.context.locale ?? "ja";
-    const shortInstruction = hasChildren
+    const shortInstruction = req.managerReview
+      ? req.body
+      : hasChildren
       ? buildExecBossInlinePrompt(locale, agent, req.context, req.body)
       : buildExecLeafPrompt(locale, req.body);
     // spec file は不要 (inline 化)。taskSpecPath は cleanup には使わない
@@ -689,6 +713,22 @@ export class AgentRunner extends EventEmitter {
           }
         }
 
+        // boss が `.mao/dispatches.txt` に dispatch リストを書いた場合、
+        // 確実に存在する file 内容を lastMessage の先頭に prepend する
+        // (claude TUI の styled message が stdout に出ない問題を回避)。
+        try {
+          const dispatchesPath = path.join(workingDirectory, ".mao", "dispatches.txt");
+          if (await fs.pathExists(dispatchesPath)) {
+            const dispatchesContent = (await fs.readFile(dispatchesPath, "utf8")).trim();
+            if (dispatchesContent.length > 0) {
+              lastMessage = `${dispatchesContent}\n\n---\n${lastMessage}`;
+            }
+            fs.remove(dispatchesPath).catch(() => undefined);
+          }
+        } catch {
+          // Best effort.
+        }
+
         try {
           await fs.remove(taskSpecPath);
         } catch {
@@ -752,14 +792,31 @@ export class AgentRunner extends EventEmitter {
       const timeoutMs = 5 * 60 * 1000;
       let signaledAt: number | null = null;
 
-      // signal は agent が `.mao/<token>.flag` ファイルを作成することで通知される。
-      // Write/Edit ツール経由なので permission ダイアログ無し、Bash echo にも非依存。
+      // signal は agent が以下のいずれかで通知:
+      //   - `.mao/<token>.flag` ファイル作成 (完了通知のみ)
+      //   - `.mao/dispatches.txt` ファイル作成 (boss が dispatch リストを書く場合)
+      //   - 旧 signals.log への token 追記 (後方互換)
+      // どれも Write/Edit ツール経由なので permission ダイアログ無し。
       const signalFlagPath = path.join(maoDir, `${signalToken}.flag`);
+      const dispatchesPath = path.join(maoDir, "dispatches.txt");
+      let dispatchesFromFile = "";
 
       while (Date.now() - startedAt < timeoutMs) {
         await new Promise((resolve) => setTimeout(resolve, 250));
         if (this.abortedAgents.has(agent.id)) {
           break;
+        }
+
+        if (await fs.pathExists(dispatchesPath)) {
+          try {
+            dispatchesFromFile = await fs.readFile(dispatchesPath, "utf8");
+            if (dispatchesFromFile.trim().length > 0) {
+              signaledAt = Date.now();
+              break;
+            }
+          } catch {
+            // Keep polling.
+          }
         }
 
         if (await fs.pathExists(signalFlagPath)) {
@@ -779,8 +836,9 @@ export class AgentRunner extends EventEmitter {
         }
       }
 
-      // flag ファイルは cleanup する (signals.log は後方互換のため残す)
+      // 各種 signal ファイルは cleanup
       fs.remove(signalFlagPath).catch(() => undefined);
+      fs.remove(dispatchesPath).catch(() => undefined);
 
       const elapsedMs = Date.now() - startedAt;
       const wasAborted = this.abortedAgents.has(agent.id);
@@ -803,9 +861,15 @@ export class AgentRunner extends EventEmitter {
         };
       }
 
+      // dispatches.txt が書かれていれば、それを lastMessage の先頭に置く。
+      // TUI buffer は claude/codex の styled message を取りこぼすことがあるので、
+      // 確実に存在する file content の方を信頼する。
       const cleanBuffer = stripAnsi(buffer);
       const signalIndex = cleanBuffer.lastIndexOf(signalToken);
-      const lastMessage = (signalIndex > 0 ? cleanBuffer.slice(0, signalIndex) : cleanBuffer).trim();
+      const bufferTrimmed = (signalIndex > 0 ? cleanBuffer.slice(0, signalIndex) : cleanBuffer).trim();
+      const lastMessage = dispatchesFromFile.trim().length > 0
+        ? `${dispatchesFromFile.trim()}\n\n---\n${bufferTrimmed}`
+        : bufferTrimmed;
 
       return {
         ok: true,

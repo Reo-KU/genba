@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState, type ReactElement } from "react";
+import { memo, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type ReactElement } from "react";
 import ReactFlow, {
   Handle,
   MarkerType,
@@ -13,6 +13,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { getTranslations } from "../i18n";
 import { useAppStore } from "../store/useAppStore";
+import { stripAnsi } from "../utils/stripAnsi";
 import type { Agent, AgentLocale } from "../types";
 
 const USER_NODE_ID = "__mao_user__";
@@ -228,20 +229,74 @@ const nodeTypes = {
       error: "animate-pulse border-brand-ember/70 shadow-[0_0_22px_rgba(255,59,48,0.45)]"
     }[status];
     const role = data.agent?.role || data.agent?.mode || data.agent?.type || "";
+    const isLive = status === "running" || status === "starting" || status === "error";
+
+    const agentId = data.agent?.id;
+    const logChunks = useAppStore((state) => (agentId ? state.logs[agentId] : undefined));
+    const setTerminalDrawerOpen = useAppStore((state) => state.setTerminalDrawerOpen);
+    const setSelectedAgentId = useAppStore((state) => state.setSelectedAgentId);
+
+    const tailLines = useMemo(() => {
+      if (!logChunks || logChunks.length === 0) return [] as string[];
+      const joined = stripAnsi(logChunks.join(""));
+      const lines = joined
+        .replace(/\r/g, "\n")
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+      return lines.slice(-5);
+    }, [logChunks]);
+
+    const expand = (event: ReactMouseEvent<HTMLButtonElement>): void => {
+      event.stopPropagation();
+      if (agentId) setSelectedAgentId(agentId);
+      setTerminalDrawerOpen(true);
+    };
 
     return (
       <div
-        className={`relative min-w-[180px] cursor-pointer rounded-2xl border border-brand-line bg-brand-surface/80 px-4 py-3 text-brand-text shadow-2xl backdrop-blur transition-all ${statusClass} ${
+        className={`relative min-w-[200px] max-w-[260px] cursor-pointer rounded-2xl border border-brand-line bg-brand-surface/85 px-4 py-3 text-brand-text shadow-2xl backdrop-blur transition-all ${statusClass} ${
           selected ? "ring-2 ring-brand-sunsetA/60 ring-offset-2 ring-offset-brand-bg" : ""
         }`}
       >
         <Handle type="target" position={Position.Top} className="!h-2 !w-8 !rounded-full !border-0 !bg-brand-violet/50" />
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-brand-text">{data.agent?.name ?? t.mindMap.missingAgent}</div>
-          <div className="mt-1 truncate text-[10px] uppercase tracking-[0.18em] text-brand-textDim">
-            {role || (data.isRoot ? t.mindMap.root : data.agent?.status ?? "")}
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold text-brand-text">
+              {data.agent?.name ?? t.mindMap.missingAgent}
+            </div>
+            <div className="mt-1 truncate text-[10px] uppercase tracking-[0.18em] text-brand-textDim">
+              {role || (data.isRoot ? t.mindMap.root : data.agent?.status ?? "")}
+            </div>
           </div>
+          {tailLines.length > 0 ? (
+            <button
+              type="button"
+              onClick={expand}
+              className="-mr-1 -mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-brand-textDim transition hover:bg-brand-surfaceHi hover:text-brand-text"
+              aria-label="Expand terminal"
+              title="Open full terminal"
+            >
+              <svg viewBox="0 0 24 24" className="h-3 w-3 fill-current">
+                <path d="M3 3h7v2H5v5H3V3Zm11 0h7v7h-2V5h-5V3ZM3 14h2v5h5v2H3v-7Zm16 0h2v7h-7v-2h5v-5Z" />
+              </svg>
+            </button>
+          ) : null}
         </div>
+        {tailLines.length > 0 ? (
+          <div
+            className={`mt-2 flex flex-col justify-end overflow-hidden rounded-md bg-brand-bg/60 px-2 py-1.5 font-mono text-[9px] leading-[1.35] text-brand-text/85 ${
+              isLive ? "border-l border-brand-aurora/60" : "opacity-70"
+            }`}
+            style={{ height: isLive ? "72px" : "16px" }}
+          >
+            {tailLines.slice(isLive ? -5 : -1).map((line, idx) => (
+              <div key={`${idx}-${line.slice(0, 16)}`} className="truncate">
+                {line}
+              </div>
+            ))}
+          </div>
+        ) : null}
         <Handle type="source" position={Position.Bottom} className="!h-2 !w-8 !rounded-full !border-0 !bg-brand-violet/50" />
       </div>
     );

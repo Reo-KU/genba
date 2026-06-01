@@ -2,14 +2,12 @@ import { useEffect, useRef, useState, type ReactElement } from "react";
 import type { AgentLocale } from "../types";
 
 type GearMenuProps = {
-  onOpenProjectSummary: () => void;
   onOpenSetup: () => void;
   locale: AgentLocale;
   onLocaleChange: (locale: AgentLocale) => void;
 };
 
 export default function GearMenu({
-  onOpenProjectSummary,
   onOpenSetup,
   locale,
   onLocaleChange
@@ -56,16 +54,6 @@ export default function GearMenu({
 
       {open ? (
         <div className="absolute left-0 top-12 w-56 rounded-xl border border-brand-line bg-brand-surface/95 p-1.5 shadow-2xl backdrop-blur-lg">
-          <button
-            type="button"
-            onClick={() => {
-              onOpenProjectSummary();
-              setOpen(false);
-            }}
-            className="w-full rounded-lg px-3 py-2 text-left text-sm text-brand-text hover:bg-brand-surfaceHi"
-          >
-            Project Summary
-          </button>
           <button
             type="button"
             onClick={() => {

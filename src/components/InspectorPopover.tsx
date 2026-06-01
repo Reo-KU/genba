@@ -184,7 +184,6 @@ export default function InspectorPopover(): ReactElement | null {
           {t.inspector.workspaceMaoHint}
         </p>
         <Info label={t.inspector.role} value={agent.role || "-"} />
-        <Info label={t.inspector.systemPrompt} value={agent.systemPrompt || "-"} multiline />
 
         {error ? <p className="rounded border border-brand-ember/60 bg-brand-ember/10 p-2 text-sm text-brand-ember">{error}</p> : null}
 

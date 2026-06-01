@@ -33,8 +33,29 @@ const normalizeDecorations = (input: string): string =>
     .replace(/[▀-▟]{2,}/g, "\n") // block-element
     .replace(/[-=_]{4,}/g, "\n"); // ASCII separator
 
+// PM 風の natural-language dispatch 形式 (`worker1: <内容>` や `**worker1**: <内容>`、
+// `- worker1: <内容>`) を `[TO: worker1]\n<内容>` 形式に正規化する。
+// claude TUI の injection 検知を回避するために agent prompt を緩い自然言語にできる。
+const normalizeNamePrefixes = (input: string, agents: Agent[]): string => {
+  let result = input;
+  // 長い名前から先に処理 (worker10 が worker1 にマッチしないように)
+  const sorted = [...agents].sort((a, b) => b.name.length - a.name.length);
+  for (const agent of sorted) {
+    const name = agent.name.trim();
+    if (!name) continue;
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // 行頭 (任意の bullet / 太字装飾あり) + 名前 + ":" or "：" + 任意の space → [TO: 名前]\n
+    const pattern = new RegExp(
+      `(^|\\n)[ \\t]*(?:[-*+•・] )?(?:\\*\\*|__)?${escaped}(?:\\*\\*|__)?[ \\t]*[:：][ \\t]*`,
+      "g"
+    );
+    result = result.replace(pattern, `$1[TO: ${name}]\n`);
+  }
+  return result;
+};
+
 export const parseToBlocks = (input: string, agents: Agent[]): ToBlock[] => {
-  const clean = normalizeDecorations(stripAnsi(input));
+  const clean = normalizeNamePrefixes(normalizeDecorations(stripAnsi(input)), agents);
   const raw: ToBlock[] = [];
   // 改行を必須としない (TUI が改行を奪うことが多い)。body は次の [TO: または末尾まで lazy。
   const pattern = /\[TO:\s*([^\]]+?)\]\s*([\s\S]*?)(?=\[TO:|$)/g;

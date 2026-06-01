@@ -13,6 +13,7 @@ export default function TaskInput(): ReactElement {
   const agents = useAppStore((state) => state.agents);
   const dispatchMode = useAppStore((state) => state.dispatchMode);
   const runningTaskId = useAppStore((state) => state.runningTaskId);
+  const organizationDirty = useAppStore((state) => state.organizationDirty);
   const runTask = useAppStore((state) => state.runTask);
   const cancelCurrentTask = useAppStore((state) => state.cancelCurrentTask);
   const terminalDrawerOpen = useAppStore((state) => state.terminalDrawerOpen);
@@ -24,7 +25,7 @@ export default function TaskInput(): ReactElement {
   const rootNode = nodes.find((node) => node.id === rootNodeId);
   const rootAgent = agents.find((agent) => agent.id === rootNode?.agentId);
   const isRunning = Boolean(runningTaskId);
-  const disabled = !rootAgent;
+  const disabled = !rootAgent || organizationDirty;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -82,7 +83,13 @@ export default function TaskInput(): ReactElement {
           type="text"
           value={value}
           onChange={(event) => setValue(event.target.value)}
-          placeholder={disabled ? t.taskInput.placeholderNoRoot : t.taskInput.placeholder}
+          placeholder={
+            !rootAgent
+              ? t.taskInput.placeholderNoRoot
+              : organizationDirty
+                ? t.organization.changed
+                : t.taskInput.placeholder
+          }
           disabled={isRunning || disabled}
           className="flex-1 bg-transparent text-sm text-brand-text placeholder-brand-textDim/70 focus:outline-none disabled:opacity-50"
           autoComplete="off"

@@ -8,6 +8,7 @@ import type { Agent, PtyDataEvent, PtyStatusEvent } from "../src/types";
 
 const SESSION_NAME = "mao-orch";
 const shellQuote = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
+const SHELL_COMMANDS = new Set(["sh", "bash", "zsh", "fish"]);
 
 type TmuxManagerEvents = {
   data: [PtyDataEvent];
@@ -21,7 +22,7 @@ export declare interface TmuxManager {
 }
 
 export class TmuxManager extends EventEmitter {
-  private readonly agentToWindow = new Map<string, string>();
+  private readonly agentToPane = new Map<string, string>();
   private readonly tailProcs = new Map<string, ChildProcess>();
   private readonly logFiles = new Map<string, string>();
 
@@ -37,6 +38,94 @@ export class TmuxManager extends EventEmitter {
     }
   }
 
+  private isUsablePaneCommand(command: string): boolean {
+    const normalized = command.replace(/\.exe$/i, "").toLowerCase();
+    return normalized.length > 0 && !SHELL_COMMANDS.has(normalized);
+  }
+
+  private ensureCapture(agentId: string, paneTarget: string): void {
+    let logPath = this.logFiles.get(agentId);
+    const isNewLog = !logPath;
+
+    if (!logPath) {
+      logPath = join(tmpdir(), `mao_tmux_${agentId.slice(-8)}_${randomBytes(4).toString("hex")}.log`);
+      fs.ensureFileSync(logPath);
+      this.logFiles.set(agentId, logPath);
+    }
+
+    if (isNewLog) {
+      try {
+        const snapshot = this.tmux(["capture-pane", "-p", "-t", paneTarget, "-S", "-80"]);
+        if (snapshot.trim().length > 0) {
+          fs.appendFileSync(logPath, `${snapshot}\n`);
+          this.emit("data", { agentId, data: `${snapshot}\n` });
+        }
+      } catch {
+        // Snapshot is best effort; live pipe below is the important part.
+      }
+    }
+
+    this.tmux(["pipe-pane", "-o", "-t", paneTarget, `cat >> "${logPath}"`]);
+
+    if (!this.tailProcs.has(agentId)) {
+      const tail = cpSpawn("tail", ["-F", "-n", "0", logPath], { stdio: ["ignore", "pipe", "pipe"] });
+      tail.stdout?.on("data", (chunk: Buffer) => {
+        this.emit("data", { agentId, data: chunk.toString("utf8") });
+      });
+      tail.on("exit", () => {
+        this.tailProcs.delete(agentId);
+      });
+      this.tailProcs.set(agentId, tail);
+    }
+  }
+
+  private findPaneForAgent(agentId: string): string | null {
+    const existing = this.agentToPane.get(agentId);
+    if (existing) {
+      return existing;
+    }
+
+    const windowName = this.windowNameFor(agentId);
+    try {
+      const lines = this.tmux([
+        "list-panes",
+        "-a",
+        "-t",
+        SESSION_NAME,
+        "-F",
+        "#{window_index}\t#{window_name}\t#{pane_id}\t#{pane_current_command}"
+      ]).split("\n");
+      let fallback: { index: number; paneId: string } | null = null;
+      let preferred: { index: number; paneId: string } | null = null;
+
+      for (const line of lines) {
+        const [indexText, name, paneId, currentCommand] = line.split("\t");
+        if (name !== windowName || !paneId) {
+          continue;
+        }
+
+        const index = Number(indexText);
+        const candidate = { index: Number.isFinite(index) ? index : -1, paneId };
+        if (!fallback || candidate.index > fallback.index) {
+          fallback = candidate;
+        }
+        if (this.isUsablePaneCommand(currentCommand ?? "") && (!preferred || candidate.index > preferred.index)) {
+          preferred = candidate;
+        }
+      }
+
+      const selected = preferred ?? fallback;
+      if (selected) {
+        this.agentToPane.set(agentId, selected.paneId);
+        return selected.paneId;
+      }
+    } catch {
+      return null;
+    }
+
+    return null;
+  }
+
   private ensureSession(): void {
     try {
       execFileSync("tmux", ["has-session", "-t", SESSION_NAME], { stdio: "ignore" });
@@ -46,18 +135,25 @@ export class TmuxManager extends EventEmitter {
   }
 
   has(agentId: string): boolean {
-    return this.agentToWindow.has(agentId);
+    return Boolean(this.findPaneForAgent(agentId));
   }
 
   spawn(agent: Agent): { ok: true } | { ok: false; error: string } {
-    if (this.has(agent.id)) {
-      return { ok: true };
-    }
-
     try {
       this.ensureSession();
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+
+    const existingPane = this.findPaneForAgent(agent.id);
+    if (existingPane) {
+      try {
+        this.ensureCapture(agent.id, existingPane);
+      } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      }
+      this.emit("status", { agentId: agent.id, status: "running" });
+      return { ok: true };
     }
 
     const windowName = this.windowNameFor(agent.id);
@@ -67,48 +163,47 @@ export class TmuxManager extends EventEmitter {
       .map(shellQuote)
       .join(" ");
 
+    let paneTarget: string;
     try {
-      this.tmux(["new-window", "-t", SESSION_NAME, "-n", windowName, "-c", cwd]);
+      paneTarget = this.tmux([
+        "new-window",
+        "-P",
+        "-F",
+        "#{pane_id}",
+        "-t",
+        SESSION_NAME,
+        "-n",
+        windowName,
+        "-c",
+        cwd
+      ]).trim();
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
 
-    this.agentToWindow.set(agent.id, windowName);
-
-    const logPath = join(tmpdir(), `mao_tmux_${agent.id.slice(-8)}_${randomBytes(4).toString("hex")}.log`);
-    fs.ensureFileSync(logPath);
-    this.logFiles.set(agent.id, logPath);
+    this.agentToPane.set(agent.id, paneTarget);
 
     try {
-      this.tmux(["pipe-pane", "-o", "-t", `${SESSION_NAME}:${windowName}`, `cat >> "${logPath}"`]);
-      this.tmux(["send-keys", "-t", `${SESSION_NAME}:${windowName}`, fullCommand, "Enter"]);
+      this.ensureCapture(agent.id, paneTarget);
+      this.tmux(["send-keys", "-t", paneTarget, fullCommand, "Enter"]);
     } catch (error) {
       try {
-        execFileSync("tmux", ["kill-window", "-t", `${SESSION_NAME}:${windowName}`], { stdio: "ignore" });
+        execFileSync("tmux", ["kill-pane", "-t", paneTarget], { stdio: "ignore" });
       } catch {
         // Best effort cleanup.
       }
-      this.agentToWindow.delete(agent.id);
+      this.agentToPane.delete(agent.id);
       this.logFiles.delete(agent.id);
       return { ok: false, error: `pipe-pane setup failed: ${error instanceof Error ? error.message : String(error)}` };
     }
-
-    const tail = cpSpawn("tail", ["-F", "-n", "0", logPath], { stdio: ["ignore", "pipe", "pipe"] });
-    tail.stdout?.on("data", (chunk: Buffer) => {
-      this.emit("data", { agentId: agent.id, data: chunk.toString("utf8") });
-    });
-    tail.on("exit", () => {
-      this.tailProcs.delete(agent.id);
-    });
-    this.tailProcs.set(agent.id, tail);
 
     this.emit("status", { agentId: agent.id, status: "running" });
     return { ok: true };
   }
 
   write(agentId: string, data: string): void {
-    const windowName = this.agentToWindow.get(agentId);
-    if (!windowName) {
+    const paneTarget = this.agentToPane.get(agentId);
+    if (!paneTarget) {
       return;
     }
 
@@ -122,7 +217,7 @@ export class TmuxManager extends EventEmitter {
 
       try {
         this.tmux(["load-buffer", "-b", bufferId, bufferFile]);
-        this.tmux(["paste-buffer", "-b", bufferId, "-t", `${SESSION_NAME}:${windowName}`, "-d"]);
+        this.tmux(["paste-buffer", "-b", bufferId, "-t", paneTarget, "-d"]);
       } finally {
         try {
           fs.unlinkSync(bufferFile);
@@ -133,19 +228,19 @@ export class TmuxManager extends EventEmitter {
     }
 
     if (endsWithCarriageReturn) {
-      this.tmux(["send-keys", "-t", `${SESSION_NAME}:${windowName}`, "Enter"]);
+      this.tmux(["send-keys", "-t", paneTarget, "Enter"]);
     }
   }
 
   kill(agentId: string): void {
-    const windowName = this.agentToWindow.get(agentId);
-    if (windowName) {
+    const paneTarget = this.agentToPane.get(agentId);
+    if (paneTarget) {
       try {
-        execFileSync("tmux", ["kill-window", "-t", `${SESSION_NAME}:${windowName}`], { stdio: "ignore" });
+        execFileSync("tmux", ["kill-pane", "-t", paneTarget], { stdio: "ignore" });
       } catch {
-        // Window may already be gone.
+        // Pane may already be gone.
       }
-      this.agentToWindow.delete(agentId);
+      this.agentToPane.delete(agentId);
     }
 
     const tail = this.tailProcs.get(agentId);
@@ -182,7 +277,7 @@ export class TmuxManager extends EventEmitter {
 
     this.tailProcs.clear();
     this.logFiles.clear();
-    this.agentToWindow.clear();
+    this.agentToPane.clear();
 
     try {
       execFileSync("tmux", ["kill-session", "-t", SESSION_NAME], { stdio: "ignore" });
@@ -196,13 +291,30 @@ export class TmuxManager extends EventEmitter {
   }
 
   selectWindow(agentId: string): boolean {
-    const windowName = this.agentToWindow.get(agentId);
-    if (!windowName) {
+    const paneTarget = this.findPaneForAgent(agentId);
+    if (!paneTarget) {
       return false;
     }
 
     try {
-      this.tmux(["select-window", "-t", `${SESSION_NAME}:${windowName}`]);
+      this.ensureCapture(agentId, paneTarget);
+      this.tmux(["select-window", "-t", paneTarget]);
+      this.tmux(["select-pane", "-t", paneTarget]);
+      try {
+        const clients = this.tmux(["list-clients", "-t", SESSION_NAME, "-F", "#{client_name}"])
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean);
+        for (const client of clients) {
+          try {
+            this.tmux(["switch-client", "-c", client, "-t", paneTarget]);
+          } catch {
+            // Best effort: select-window above is enough for detached session state.
+          }
+        }
+      } catch {
+        // No attached clients yet.
+      }
       return true;
     } catch {
       return false;
@@ -210,11 +322,11 @@ export class TmuxManager extends EventEmitter {
   }
 
   getAttachCommand(agentId: string): string | null {
-    const windowName = this.agentToWindow.get(agentId);
-    if (!windowName) {
+    const paneTarget = this.agentToPane.get(agentId);
+    if (!paneTarget) {
       return null;
     }
 
-    return `tmux attach -t ${SESSION_NAME}:${windowName}`;
+    return `tmux attach -t ${paneTarget}`;
   }
 }

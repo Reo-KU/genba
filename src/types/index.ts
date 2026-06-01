@@ -94,7 +94,58 @@ export type ContextSnapshot = {
   projectSummary: string;
   agentSummary: AgentSummary | null;
   graph: GraphSnapshotForContext;
+  organizationBrief?: string;
   locale?: AgentLocale;
+};
+
+export type ActiveOrganizationAgent = {
+  id: string;
+  nodeId: string;
+  name: string;
+  role: string;
+  type: Agent["type"];
+  mode: AgentMode;
+  status: Agent["status"];
+  workingDirectory: string;
+};
+
+export type ActiveOrganizationMember = ActiveOrganizationAgent & {
+  directUpstream: ActiveOrganizationAgent[];
+  allUpstream: ActiveOrganizationAgent[];
+  directDownstream: ActiveOrganizationAgent[];
+  allDownstream: ActiveOrganizationAgent[];
+  peers: ActiveOrganizationAgent[];
+};
+
+export type ActiveOrganization = {
+  savedAt: string;
+  rootAgentId: string | null;
+  locale: AgentLocale;
+  members: ActiveOrganizationMember[];
+  edges: Array<{ source: string; target: string }>;
+};
+
+export type OrganizationInstruction = {
+  agentId: string;
+  agentName: string;
+  workingDirectory: string;
+  relativePath: string;
+  content: string;
+};
+
+export type OrganizationBrief = OrganizationInstruction;
+
+export type OrganizationSaveRequest = {
+  agents: Agent[];
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  rootNodeId: string | null;
+  locale?: AgentLocale;
+};
+
+export type OrganizationSaveResult = {
+  organization: ActiveOrganization;
+  briefs: OrganizationBrief[];
 };
 
 export type AgentRunRequest = {
@@ -102,6 +153,16 @@ export type AgentRunRequest = {
   body: string;
   taskId: string;
   context: ContextSnapshot;
+  /**
+   * "router" 用呼び出し: 子持ち agent を 1 ターン exec として呼んでルーティング判定だけさせる。
+   * agent.mode に関わらず exec モードで invoke される。stateless で TUI セッションを残さない。
+   */
+  routerCall?: boolean;
+  /**
+   * Parent/manager review pass after downstream agents have completed.
+   * In this pass the agent evaluates child results and either reports upward or redispatches.
+   */
+  managerReview?: boolean;
 };
 
 export type AgentRunResult =
@@ -168,6 +229,7 @@ export type IpcChannels = {
   "mao:agent:appendHistory": (agentId: string, entry: AgentHistoryEntry) => Promise<void>;
   "mao:project:loadSummary": () => Promise<string>;
   "mao:project:saveSummary": (text: string) => Promise<void>;
+  "mao:organization:save": (request: OrganizationSaveRequest) => Promise<OrganizationSaveResult>;
   "mao:graph:load": () => Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }>;
   "mao:graph:save": (graph: { nodes: GraphNode[]; edges: GraphEdge[] }) => Promise<void>;
   "mao:task:create": (task: Task) => Promise<Task>;

@@ -115,6 +115,13 @@ export const ja: Translations = {
     stopTask: "停止",
     stopTaskTooltip: "実行中のタスクを中止し、全エージェントを kill します"
   },
+  organization: {
+    changed: "組織構造に変更があります",
+    activeAgents: (n: number) => `有効な接続済み agent: ${n}`,
+    save: "組織を保存",
+    saving: "保存中...",
+    saveError: "組織の保存に失敗しました。"
+  },
   permission: {
     tag: "承認要求",
     body: (tool: string) => `${tool} の実行を要求しています`,

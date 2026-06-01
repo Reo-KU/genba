@@ -12,6 +12,8 @@ import type {
   PermissionRequestEvent,
   PtyDataEvent,
   PtyStatusEvent,
+  OrganizationSaveRequest,
+  OrganizationSaveResult,
   SetupCheckResult,
   Task
 } from "./index";
@@ -30,6 +32,9 @@ type MaoApi = {
   project: {
     loadSummary: () => Promise<string>;
     saveSummary: (text: string) => Promise<void>;
+  };
+  organization: {
+    save: (request: OrganizationSaveRequest) => Promise<OrganizationSaveResult>;
   };
   graph: {
     load: () => Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }>;
