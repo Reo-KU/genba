@@ -1,5 +1,16 @@
 # Multi-Agent CLI Orchestrator
 
+> ライセンス: MAO は source-available project です。個人利用、学習利用、
+> 研究利用、自己ホスト、社内利用、Fork、改造、Pull Request は許可されます。
+> ただし、MAO または派生版を Hosted SaaS / Cloud / managed service /
+> 競合する automation platform として提供・販売することは、別途書面による
+> 商用ライセンスなしには許可されません。詳細は [LICENSE](LICENSE) を確認してください。
+> MAO / MAO OS / MAO Cloud は Reo Komai の商標・ブランド名です。
+> 公式リポジトリは
+> [github.com/Reo-KU/multi-agent-orchestrator](https://github.com/Reo-KU/multi-agent-orchestrator)
+> です。ライセンス・商用利用の問い合わせ先は
+> [imopotato8@gmail.com](mailto:imopotato8@gmail.com) です。
+
 複数の CLI エージェント (Claude Code / OpenAI Codex / Gemini CLI / Grok /
 任意のカスタム CLI) を**マインドマップで役割分担**して動かすデスクトップアプリ。
 エージェントごとの permission policy、組み込み Web ターミナル、外部から

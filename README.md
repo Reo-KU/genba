@@ -1,225 +1,125 @@
-# Multi-Agent CLI Orchestrator
+# MAO
 
-Desktop app to orchestrate multiple CLI agents (Claude Code / OpenAI Codex /
-Gemini CLI / Grok / any custom CLI) as a mindmap with per-agent permission
-policies, an embedded web terminal, and a tmux-attachable backend.
+MAO is an AI agent organization OS.
 
-> 日本語版: [README.ja.md](README.ja.md)
+It lets you connect multiple AI coding and assistant CLIs, such as Claude,
+Codex, GPT-compatible tools, Gemini, Grok, and custom commands, assign roles to
+them, and coordinate their work as an interactive organization chart. Agents can
+be arranged as upstream managers, downstream workers, and peers, then run
+together through a visual map and embedded terminals.
 
-> ⚠️ **MAO does not bundle the agent CLIs.** It just spawns whatever
-> `command` you tell each agent to run. You need to install the CLIs you
-> want to drive separately (see Prerequisites).
+MAO is a source-available project. Self-hosting, personal use, learning,
+research, development, internal company use, forks, modifications, and pull
+requests are allowed under the license terms.
 
-## Prerequisites
+Commercial hosted competing services are not allowed. You may not offer MAO, a
+modified MAO, or a substantially similar derivative as a hosted SaaS, cloud
+service, managed service, hosted agent-orchestration service, or competing
+automation platform without a separate written commercial license.
 
-### 1. Required system tools
+License details are in [LICENSE](LICENSE). Third-party dependency notices are
+in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-MAO needs Node.js, plus two system binaries for the interactive-mode
-backend.
+MAO, MAO OS, and MAO Cloud are trademarks and brand names of Reo Komai. See
+[TRADEMARKS.md](TRADEMARKS.md).
 
-| Tool | macOS install | Why |
-|---|---|---|
-| Node.js 20+ | `brew install node` or `nvm install --lts` | Runtime for the app and the renderer |
-| **tmux** | `brew install tmux` | All interactive-mode agents live in a tmux session (`mao-orch`). |
-| **ttyd** | `brew install ttyd` | Renders the live tmux session as the embedded web terminal in the bottom panel. |
+Official repository:
+[github.com/Reo-KU/multi-agent-orchestrator](https://github.com/Reo-KU/multi-agent-orchestrator)
 
-Linux: install the equivalents through apt / dnf / pacman. Windows is
-untested.
+Issues:
+[GitHub Issues](https://github.com/Reo-KU/multi-agent-orchestrator/issues)
 
-### 2. Agent CLIs (install whichever you plan to use)
+Licensing and commercial inquiries:
+[imopotato8@gmail.com](mailto:imopotato8@gmail.com)
 
-You only need the CLIs you will actually attach to an agent. MAO's
-`allowlist` accepts `claude`, `codex`, `grok`, `gemini`, plus shells
-(`sh` / `bash` / `zsh`) and `python` / `python3` / `node` for custom
-agents.
+> MAO does not bundle Claude, Codex, Gemini, Grok, GPT, or other agent CLIs.
+> It starts the commands you configure, and each CLI remains governed by its
+> own vendor terms.
 
-| Agent type | Suggested install | Auth |
-|---|---|---|
-| `claude` | `npm install -g @anthropic-ai/claude-code` (or the official installer) | run `claude` once and log in |
-| `codex` | follow [openai/codex](https://github.com/openai/codex) install instructions | `codex login` |
-| `gemini` | `npm install -g @google/gemini-cli` | `gemini` interactive setup |
-| `grok` | xAI's `grok-cli` (project-specific) | depends |
-| `custom` | anything from the allowlist that takes a prompt | depends |
+## Features
 
-Verify before launching MAO:
+- Visual multi-agent organization map
+- Upstream, downstream, and peer relationship awareness
+- Independent organization planner for generating active-agent briefs
+- Interactive agent terminals backed by tmux and ttyd
+- Support for Claude, Codex, Gemini, Grok, and custom allowlisted commands
+- Per-agent execution modes and permission policy controls
+- Persistent task artifacts under `mao_artifacts/`
+- Temporary MAO control files under `.mao/`
 
-```sh
-which tmux ttyd node
-which claude codex gemini   # only those you installed
-```
+## Requirements
 
-If MAO tries to spawn an agent whose `command` isn't in the allowlist or
-isn't on `PATH`, it surfaces "Command not in allowlist" or
-"posix_spawnp failed" in the agent status — no silent failure, but the
-agent won't run.
+Required:
 
-### 3. (Optional) Per-CLI authentication
+| Tool | Why |
+|---|---|
+| Node.js 20+ | App runtime and build tooling |
+| tmux | Interactive agent session backend |
+| ttyd | Embedded web terminal for tmux |
 
-Each agent CLI manages its own credentials. MAO doesn't proxy logins; it
-just spawns the CLI in its working directory and assumes the CLI is
-already authenticated. Run each CLI manually once before adding it as an
-agent.
+Optional agent CLIs:
 
-## Setup
+| CLI | Typical use |
+|---|---|
+| `claude` | Claude Code agents and organization planner |
+| `codex` | Codex agents |
+| `gemini` | Gemini CLI agents |
+| `grok` | Grok CLI agents |
+| `sh`, `bash`, `zsh`, `python`, `python3`, `node` | Custom local commands |
 
-```sh
-git clone https://github.com/Reo-KU/multi-agent-orchestrator.git
-cd multi-agent-orchestrator
-npm install
-```
+Install and authenticate the CLIs you want to use before adding them as agents.
 
 ## Development
 
 ```sh
+npm install
 npm run dev
 ```
 
-Starts the Electron app with the Vite renderer dev server.
-
-## Build
+Build:
 
 ```sh
 npm run build
 ```
 
-Builds the Electron main, preload, and renderer output into `out/`.
-
-## Distribution
+Package:
 
 ```sh
 npm run dist
 ```
 
-Builds the app and packages it with electron-builder. The minimal targets are macOS `dmg` and Windows `nsis`.
+## Workspace Files
 
-## Shared Contracts
-
-Pane2 and Pane3 should import shared domain and IPC contract types from:
-
-```ts
-import type { Agent, GraphNode, GraphEdge, Task, Message, IpcChannels } from "./src/types";
-```
-
-Workspace JSON paths are defined in `src/utils/storage.ts` and point to:
+MAO stores app-level workspace state under:
 
 ```text
 ~/.multi-agent-orchestrator/workspaces/default/
 ```
 
-## Files Created Inside Agent Workspaces
+Inside each agent working directory, MAO may create:
 
-MAO creates a `.mao/` directory inside each agent's `workingDirectory` while a
-task is running:
+| Path | Purpose |
+|---|---|
+| `.mao/` | Temporary control files, briefs, dispatches, and completion signals |
+| `mao_artifacts/` | Persistent task outputs created by agents |
 
-- `.mao/<taskId>.md` — task spec with graph context, project information,
-  received instruction, and response rules
-- `.mao/signals.log` — task completion signals appended by agents with `echo`
+`.mao/` is control state and may be cleaned or regenerated. Do not store final
+deliverables there. Use `mao_artifacts/` for outputs that should survive
+organization saves and task cleanup.
 
-Only a short natural-language instruction is sent through the PTY. The larger
-task context is read from the task spec file. This avoids prompt-injection
-detection in Claude TUI and CLI sandbox permission blocks caused by sending a
-large prompt directly through the terminal.
+## License Summary
 
-If the workspace is a git repository, MAO automatically appends `.mao/` to that
-workspace's `.gitignore`. The task spec file is removed after success, abort,
-timeout, or error; `signals.log` is rotated when it grows large.
+MAO is licensed under the Business Source License 1.1 with an Additional Use
+Grant for personal, educational, research, development, self-hosted, and
+internal business use.
 
-## UI Walkthrough
+The current proposed Change Date is `2030-06-01`. On the Change Date, the
+covered version changes to the Apache License 2.0 unless a later release states
+different parameters.
 
-- Project Summary: 左上の "Project Summary" ボタンから、プロジェクト全体の前提や方針を Markdown テキストとして編集できます。
-- Agent History: Inspector の "直近の応答履歴" で、選択中エージェントの最近の入力、応答、dispatch 数を確認できます。
-- Node glow: マインドマップ上のノードは状態に応じて光ります。starting は黄色、running はシアン、error は赤です。
-- Root agent: マインドマップ上の User ノードからエージェントへ線を引くと、そのエージェントが root になります。User から root へのシアン破線は表示専用で、`graph.json` には保存されません。
-- Terminal input: 最下部 Terminal は入力対応です。interactive mode の承認プロンプトや CLI 入力に直接応答できます。
+This summary is not a substitute for [LICENSE](LICENSE).
 
-## Setup Check
+## Contributing
 
-On startup, MAO checks required tools such as tmux and ttyd. If anything is
-missing, the setup modal shows install commands. Tools that support automatic
-installation include an Install button with live output; otherwise use Copy and
-run the command manually in your terminal.
-
-## Live Terminal
-
-Interactive agents use a real web terminal through ttyd and tmux in the bottom
-Terminal panel. Selecting an interactive agent tab switches the active tmux
-window. Exec agents stay on the lightweight xterm log viewer. You can also
-attach from a native terminal with `tmux attach -t mao-orch`.
-
-## Permission Flags
-
-- Codex: `--sandbox workspace-write`, `--dangerously-bypass-approvals-and-sandbox`
-- Claude: `--permission-mode acceptEdits`, `--dangerously-skip-permissions`
-- Grok/custom: 利用中 CLI のドキュメントに従って Args に追加してください。
-
-## Permission Policy
-
-Each agent has a `permissionPolicy` which MAO translates to the appropriate
-CLI-specific flags at spawn time:
-
-| Policy | codex | claude | gemini |
-|---|---|---|---|
-| `safe-auto` (default) | `--sandbox workspace-write` | `--permission-mode acceptEdits` | `--approval-mode auto_edit` |
-| `yolo` | `--dangerously-bypass-approvals-and-sandbox` | `--dangerously-skip-permissions` | `--yolo` |
-| `ask` | (no flags) | (no flags) | (no flags) |
-
-`safe-auto` is the right default for most workflows: agents can edit files
-inside the cwd but can't escape it or run network/shell side-effects without
-prompting. `yolo` skips every prompt; only use it when you trust the task and
-are prepared to clean up afterwards.
-
-### `ask` (per-call approval) and how it differs by CLI
-
-`ask` is the only policy where MAO can interpose itself between the model and
-each dangerous tool call. The plumbing depends on what the CLI exposes:
-
-| CLI | `ask` + `exec` | `ask` + `interactive` |
-|---|---|---|
-| **claude** | ✅ MAO modal. Each tool call (Write, Bash, etc.) pops a "⚠️ Permission Request" dialog with the tool name and input. Approve / Deny is forwarded to claude via its `--permission-prompt-tool` MCP hook. | ✅ Same modal; or the CLI's own TUI prompt in the bottom terminal if `--permission-prompt-tool` is not loaded. |
-| **codex** | ⚠️ No per-call approval — codex `exec` is hard-wired to `approval: never`, and codex has no equivalent of claude's `--permission-prompt-tool`. The CLI silently denies anything that needs approval. Inspector shows a yellow warning for this combination. | ✅ codex's native TUI prompt appears in the bottom terminal. Click the active tab, type `y`/`n`/`1`/`2` to answer. |
-| **gemini** | ⚠️ Same situation as codex — no programmatic hook. Inspector warns. | ✅ Gemini's TUI prompt appears in the bottom terminal; respond there. |
-| **grok / custom** | ⚠️ CLI-specific. | ✅ If the CLI prints a prompt to its TUI, answer it from the bottom terminal. |
-
-In short:
-
-- "I want every privileged operation to pop a dialog" → use **claude** with
-  `mode=exec` and `permissionPolicy=ask`. This is the cleanest experience.
-- "I'm using codex or gemini and need approvals" → switch the agent to
-  `mode=interactive`, then approve in the bottom terminal panel directly.
-- "I want full automation with sandboxing" → leave `safe-auto` on, escalate
-  individual agents to `yolo` only when needed.
-
-Interactive mode uses a completion-signal flow through `agent.run`; it is useful
-for long-running tasks or permission-heavy work, with a five-minute timeout.
-
-## Troubleshooting
-
-### node-pty: spawn-helper permission error
-
-初回起動時に "spawn-helper: Permission denied" が出る場合は以下を実行:
-
-```sh
-chmod +x node_modules/node-pty/build/Release/spawn-helper
-```
-
-このコマンドは postinstall (electron-builder install-app-deps) で自動的に処理される。
-解消しない場合は `npm rebuild node-pty` を手動実行してください。
-
-### rollup: Cannot find module @rollup/rollup-darwin-arm64
-
-npm の optional-dependencies バグが原因です。以下で解消します:
-
-```sh
-rm -rf node_modules package-lock.json
-npm install
-```
-
-### esbuild: installed for another platform
-
-PM/CI 環境とインストール環境の arch が異なる場合 (Rosetta 2 越しに npm install など) に発生。
-両方のバイナリを optionalDependencies に明示して回避できます。
-
-### Electron 起動時にウィンドウが開かない
-
-- ポート競合の可能性: `lsof -i :5173` で確認
-- dev mode は環境変数 `ELECTRON_RENDERER_URL` を使用
+Pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md)
+before submitting changes.
