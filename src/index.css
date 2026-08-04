@@ -37,14 +37,17 @@
   mask-composite: exclude;
 }
 
+/* カスタムプロパティのアニメーションはコンポジタに乗らず、conic-gradient を毎フレーム
+   CPU で再描画する (稼働カード数ぶん×60fps+)。steps() で 12fps に間引くと見た目は
+   ほぼ変わらないままペイント回数が約 1/5〜1/10 になる。 */
 .mao-ring-running::before {
   background: conic-gradient(from var(--mao-ring-angle), transparent, theme("colors.brand.aurora"), transparent);
-  animation: mao-ring-rotate 4s linear infinite;
+  animation: mao-ring-rotate 4s steps(48) infinite;
 }
 
 .mao-ring-starting::before {
   background: conic-gradient(from var(--mao-ring-angle), theme("colors.brand.sunsetA"), theme("colors.brand.sunsetB"), transparent);
-  animation: mao-ring-rotate 4s linear infinite;
+  animation: mao-ring-rotate 4s steps(48) infinite;
 }
 
 /* edges — v9: 樹形図 (マインドマップ) の線。根→フォルダ→エージェントを結ぶだけの非インタラクティブな

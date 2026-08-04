@@ -451,6 +451,7 @@ function CanvasInner(): ReactElement {
         nodeTypes={nodeTypes}
         fitView
         panOnDrag
+        onlyRenderVisibleElements
         proOptions={{ hideAttribution: true }}
         deleteKeyCode={["Backspace", "Delete"]}
         onNodeClick={(event, node) => {
@@ -653,7 +654,7 @@ const nodeTypes = {
   root: memo(function RootNode({ data }: NodeProps<TreeNodeData>): ReactElement {
     return (
       <div
-        className="flex h-full w-full items-center justify-center gap-1.5 rounded-full border border-brand-line bg-brand-surface/95 px-3 text-[12px] font-semibold text-brand-text shadow-lg backdrop-blur"
+        className="flex h-full w-full items-center justify-center gap-1.5 rounded-full border border-brand-line bg-brand-surface px-3 text-[12px] font-semibold text-brand-text shadow-lg"
         title={data.path}
       >
         <Handle type="source" position={Position.Right} style={HIDDEN_HANDLE_STYLE} />
@@ -999,7 +1000,7 @@ const nodeTypes = {
 
     return (
       <div
-        className={`group relative min-w-[200px] max-w-[260px] cursor-pointer rounded-2xl border border-brand-line bg-brand-surface/85 px-4 py-3 text-brand-text shadow-2xl backdrop-blur transition-all ${statusClass} ${
+        className={`group relative min-w-[200px] max-w-[260px] cursor-pointer rounded-2xl border border-brand-line bg-brand-surface/95 px-4 py-3 text-brand-text shadow-2xl transition-all ${statusClass} ${
           selected ? "ring-2 ring-brand-sunsetA/60 ring-offset-2 ring-offset-brand-bg" : ""
         }`}
       >
