@@ -444,6 +444,28 @@ export class TmuxManager extends EventEmitter {
     }
   }
 
+  /**
+   * pane の「今見えている画面」をエスケープシーケンス付きで返す。
+   *
+   * TUI (claude 等) の出力ストリームは「その時点の端末サイズの画面」を前提とした
+   * カーソル移動の羅列なので、ログのように後から再生すると必ず崩れる。
+   * パネルを開いたとき・リサイズしたときは、履歴の再生ではなくこのスナップショットで
+   * 画面を作り直し、以降のストリームだけを流すのが正しい。
+   * (-S/-E は指定しない = 表示中の画面のみ。スクロールバックは xterm 側に持たせない)
+   */
+  snapshot(agentId: string): string | null {
+    const paneTarget = this.findPaneForAgent(agentId);
+    if (!paneTarget) {
+      return null;
+    }
+
+    try {
+      return this.tmux(["capture-pane", "-p", "-e", "-t", paneTarget]);
+    } catch {
+      return null;
+    }
+  }
+
   getAttachCommand(agentId: string): string | null {
     const paneTarget = this.agentToPane.get(agentId);
     if (!paneTarget) {

@@ -1023,6 +1023,13 @@ const registerIpcHandlers = (): void => {
     }
   );
 
+  ipcMain.handle(
+    "mao:tmux:snapshot" satisfies keyof IpcChannels,
+    async (_event, agentId: string): ReturnType<IpcChannels["mao:tmux:snapshot"]> => {
+      return tmuxManager.snapshot(agentId);
+    }
+  );
+
   ipcMain.handle("mao:setup:check" satisfies keyof IpcChannels, async (): ReturnType<IpcChannels["mao:setup:check"]> => {
     return runSetupCheck();
   });

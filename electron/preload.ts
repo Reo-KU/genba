@@ -83,7 +83,8 @@ contextBridge.exposeInMainWorld("mao", {
     append: (agentId: string, data: string): Promise<void> => ipcRenderer.invoke("mao:log:append", agentId, data)
   },
   tmux: {
-    watch: (agentId: string): Promise<boolean> => ipcRenderer.invoke("mao:tmux:watch", agentId)
+    watch: (agentId: string): Promise<boolean> => ipcRenderer.invoke("mao:tmux:watch", agentId),
+    snapshot: (agentId: string): Promise<string | null> => ipcRenderer.invoke("mao:tmux:snapshot", agentId)
   },
   setup: {
     check: (): Promise<SetupCheckResult> => ipcRenderer.invoke("mao:setup:check"),

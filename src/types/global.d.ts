@@ -76,6 +76,7 @@ type MaoApi = {
   };
   tmux: {
     watch: (agentId: string) => Promise<boolean>;
+    snapshot: (agentId: string) => Promise<string | null>;
   };
   setup: {
     check: () => Promise<SetupCheckResult>;

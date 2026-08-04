@@ -338,6 +338,7 @@ export type IpcChannels = {
   "mao:log:append": (agentId: string, data: string) => Promise<void>;
   "mao:permission:respond": (requestId: string, decision: PermissionDecision) => Promise<boolean>;
   "mao:tmux:watch": (agentId: string) => Promise<boolean>;
+  "mao:tmux:snapshot": (agentId: string) => Promise<string | null>;
   "mao:setup:check": () => Promise<SetupCheckResult>;
   "mao:setup:install": (toolName: string) => Promise<InstallResult>;
   "mao:setup:installCancel": (toolName: string) => Promise<boolean>;

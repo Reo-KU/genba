@@ -96,31 +96,63 @@ export default function TerminalPanel(): ReactElement {
 
     // ttyd (= 本物の tmux クライアント) が居なくなったので、サイズ通知は自前で出す。
     // これを送らないとエージェント側は tmux 既定の 200x50 のつもりで描画し、行が崩れる。
-    const pushSize = (): void => {
+    const pushSize = async (): Promise<void> => {
       fitAddon.fit();
       const { cols, rows } = terminal;
       if (cols > 0 && rows > 0) {
         // ブラウザモック (Electron 外の目視確認用) では window.mao が居ないので optional chaining。
-        void window.mao?.pty.resize(agentId, cols, rows).catch(() => undefined);
+        await window.mao?.pty.resize(agentId, cols, rows).catch(() => undefined);
       }
     };
 
-    requestAnimationFrame(pushSize);
+    let writtenSeq = 0;
+    let disposed = false;
+
+    // TUI の出力ストリームは「その時点の端末サイズの画面」を前提としたカーソル移動の
+    // 羅列なので、溜まった履歴をサイズの違う xterm に再生すると必ず崩れる。
+    // interactive は履歴を再生せず、tmux の「今の画面」(capture-pane) で作り直して、
+    // 以降のストリームだけを流す。
+    const refreshScreen = async (): Promise<void> => {
+      // seq はスナップショット取得の「前」に読む。取得中に届いたチャンクは
+      // スナップショットと二重になる可能性があるが、欠落するよりはよい
+      // (TUI はカーソル位置指定で描くので重複は次の再描画で消える)。
+      const seqBefore = useAppStore.getState().logSeq[agentId] ?? 0;
+      const screen = await window.mao?.tmux.snapshot(agentId).catch(() => null);
+      if (disposed) {
+        return;
+      }
+      writtenSeq = seqBefore;
+      terminal.reset();
+      if (screen) {
+        terminal.write(maskSecrets(screen));
+      }
+      terminal.scrollToBottom();
+    };
 
     if (activeIsInteractive) {
-      // アプリ再起動後は tmux の pane が生きていても購読 (pipe-pane + tail) が切れている。
-      void window.mao?.tmux.watch(agentId).catch(() => undefined);
+      // refreshScreen が終わるまでの間に store のフラッシュが来ても、リングバッファ全体を
+      // 再生してしまわないよう「今」を基準にしておく (画面は直後の snapshot が作る)。
+      writtenSeq = useAppStore.getState().logSeq[agentId] ?? 0;
+      requestAnimationFrame(() => {
+        void (async () => {
+          await pushSize();
+          // アプリ再起動後は tmux の pane が生きていても購読 (pipe-pane + tail) が切れている。
+          await window.mao?.tmux.watch(agentId).catch(() => undefined);
+          await refreshScreen();
+        })();
+      });
+    } else {
+      requestAnimationFrame(() => void pushSize());
+      // exec はプレーンなログなので履歴の一括再生でよい。
+      // logs と logSeq は必ず同じスナップショットから読む (別々に getState すると
+      // 間にフラッシュが挟まって「書いた量」と seq がずれる)。
+      const snapshot = useAppStore.getState();
+      const initial = snapshot.logs[agentId] ?? [];
+      if (initial.length > 0) {
+        terminal.write(maskSecrets(initial.join("")));
+      }
+      writtenSeq = snapshot.logSeq[agentId] ?? 0;
     }
-
-    // 既に溜まっている分をまとめて1回で書く (チャンクごとの write は描画が重い)。
-    // logs と logSeq は必ず同じスナップショットから読む (別々に getState すると
-    // 間にフラッシュが挟まって「書いた量」と seq がずれる)。
-    const snapshot = useAppStore.getState();
-    const initial = snapshot.logs[agentId] ?? [];
-    if (initial.length > 0) {
-      terminal.write(maskSecrets(initial.join("")));
-    }
-    let writtenSeq = snapshot.logSeq[agentId] ?? 0;
 
     // ログは store を直接購読する。React の state 経由にすると 1 チャンクごとに
     // パネル全体が再レンダリングされるため、描画コストが出力速度に比例して膨らむ。
@@ -152,17 +184,28 @@ export default function TerminalPanel(): ReactElement {
     });
 
     let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+    let snapshotTimer: ReturnType<typeof setTimeout> | undefined;
     const onResize = (): void => {
       if (resizeTimer) clearTimeout(resizeTimer);
       // tmux resize-window は同期 exec なので、ドラッグ中に毎フレーム叩かない。
-      resizeTimer = setTimeout(pushSize, 120);
+      resizeTimer = setTimeout(() => {
+        void pushSize();
+        if (activeIsInteractive) {
+          // 旧サイズで描かれた画面が xterm に残ると崩れたままになる。
+          // リサイズ後、TUI が SIGWINCH で再描画する猶予をおいて画面を作り直す。
+          if (snapshotTimer) clearTimeout(snapshotTimer);
+          snapshotTimer = setTimeout(() => void refreshScreen(), 350);
+        }
+      }, 120);
     };
     window.addEventListener("resize", onResize);
     const observer = new ResizeObserver(onResize);
     observer.observe(container);
 
     return () => {
+      disposed = true;
       if (resizeTimer) clearTimeout(resizeTimer);
+      if (snapshotTimer) clearTimeout(snapshotTimer);
       observer.disconnect();
       unsubscribe();
       inputDisposable.dispose();
@@ -171,7 +214,7 @@ export default function TerminalPanel(): ReactElement {
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [activeAgent?.id]);
+  }, [activeAgent?.id, activeIsInteractive]);
 
   const handleTabClick = (agentId: string): void => {
     setActiveAgentId(agentId);
