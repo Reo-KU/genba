@@ -1,40 +1,33 @@
-# Multi-Agent CLI Orchestrator
+# MAO — AIエージェントの仕事場
 
-> ライセンス: MAO は source-available project です。個人利用、学習利用、
-> 研究利用、自己ホスト、社内利用、Fork、改造、Pull Request は許可されます。
-> ただし、MAO または派生版を Hosted SaaS / Cloud / managed service /
-> 競合する automation platform として提供・販売することは、別途書面による
-> 商用ライセンスなしには許可されません。詳細は [LICENSE](LICENSE) を確認してください。
+> ライセンス: MAO は source-available project です。**個人利用・教育利用・
+> 研究利用・評価/検証利用、Fork、改造、Pull Request は無料**で許可されます。
+> **企業その他の組織での本番利用には商用ライセンスが必要**です。また、MAO
+> または派生版を Hosted SaaS / Cloud / managed service / 競合する automation
+> platform として提供・販売することは、別途書面による商用ライセンスなしには
+> 許可されません。詳細は [LICENSE](LICENSE) を確認してください。
 > MAO / MAO OS / MAO Cloud は Reo Komai の商標・ブランド名です。
 > 公式リポジトリは
 > [github.com/Reo-KU/multi-agent-orchestrator](https://github.com/Reo-KU/multi-agent-orchestrator)
 > です。ライセンス・商用利用の問い合わせ先は
 > [imopotato8@gmail.com](mailto:imopotato8@gmail.com) です。
 
-複数の CLI エージェント (Claude Code / OpenAI Codex / Gemini CLI / Grok /
-任意のカスタム CLI) を**マインドマップで役割分担**して動かすデスクトップアプリ。
-エージェントごとの permission policy、組み込み Web ターミナル、外部から
-attach 可能な tmux backend を備える。
+**複数の稼働中 CLI エージェント (Claude Code / OpenAI Codex / Gemini CLI /
+Grok / 任意のカスタム CLI) を、1枚のボードで見て、動かすデスクトップアプリ。**
+
+- **フォルダ樹形図 (陣地ツリー)**: どのフォルダで何が動いているかが色で分かる。
+  稼働中のフォルダは枝色で光り、クリックで展開すると中のエージェントが並ぶ
+- **付箋**: やることを付箋に書いて、エージェントに重ねるだけで実行される
+- **Attention Inbox**: 承認待ち・エラーなど「人間の判断が要るもの」だけが
+  1か所に集まる
+- エージェントごとの permission policy、xterm ターミナル、外部から
+  attach 可能な tmux backend
+
 agent ごとに skills directory や Obsidian vault を設定し、作業時の追加リソース
-として使わせることもできます。
-
-Obsidian vault を設定した agent は、MAO の外部記憶として以下のノートを使います。
-先に用意する必要があるのはvaultフォルダだけです。vault内の `MAO/` フォルダは、
-組織保存時またはタスク開始時にMAOが自動作成します。
-
-```text
-Obsidian Vault/
-  MAO/
-    organization.md
-    agents/
-      <agent>.md
-    tasks/
-      <taskId>.md
-    decisions/
-```
-
-組織保存時に `organization.md` と agent note が更新され、タスク開始時に task
-note が作られ、各 agent の完了報告・dispatch・成果物パスが task note に追記されます。
+として使わせることもできます。vault を設定した agent は、タスク開始時に
+vault 内 `MAO/` フォルダ (自動作成) に task note を作り、完了報告や成果物パスを
+追記します。workspace 全体を vault 正典化する構想 (vault-first) は
+[docs/CONCEPT_v5.ja.md](docs/CONCEPT_v5.ja.md) の Phase 2 ロードマップを参照。
 
 > English version: [README.md](README.md)
 
@@ -127,7 +120,9 @@ electron-builder で配布パッケージを生成。macOS は `.dmg`、Windows 
 ```text
 ~/.multi-agent-orchestrator/workspaces/default/
 ├── agents.json            # 登録エージェント
-├── graph.json             # マインドマップ (位置・接続)
+├── graph.json             # ボード上のエージェント配置
+├── groups.json            # 陣地 (フォルダに紐づく囲い)
+├── notes.json             # 付箋
 ├── tasks.json             # タスク履歴
 ├── agent_history.json     # agent ごとの応答履歴
 └── project_summary.md     # プロジェクト概要 (各 prompt 先頭に注入)
@@ -152,29 +147,49 @@ permission ブロックを避けるためです。
 アウト・エラーのいずれでも削除され、`signals.log` は大きくなったら rotate
 されます。
 
-## 付箋キャンバス (v4)
+## 使い方: ボード
 
-キャンバスは付箋ベースで使えます。動詞は2つだけ (合議機能は v11 で撤去済み)。
+### 陣地 (territory) ツリー
 
-1. **貼る** — 左上の「🗒 付箋」ボタンで付箋を追加し、やることを書く。
+キャンバスにはフォルダ構造が**左→右の樹形図**として描かれます
+(root=`/Users` → 中間フォルダ → 陣地)。
+
+- **陣地 = フォルダに紐づく作業区画**。陣地の「+ エージェント」から種類
+  (claude / codex / gemini / grok / custom) を選ぶだけでエージェントを作成でき、
+  working directory は陣地のフォルダに自動で決まる。
+- **稼働状態が色で分かる**: 直属エージェントに running がいる陣地は枝色で
+  フル彩度に光る。配下に稼働がいる中間フォルダも同様。error は赤バッジ。
+  エージェント数バッジは `稼働中/合計` (例 `2/3`)。
+- **クリックで展開/折りたたみ**: 陣地をクリックすると中のエージェントカードが
+  並ぶ。もう一度クリックで畳む。
+- **整理ボタン**: 全体を決定的なグリッドにフルリフローする。手動ドラッグの
+  配置は通常時は尊重される。
+- **サイドバー** (左端の折りたたみレール): 陣地の一覧。行をクリックすると
+  キャンバスがその陣地へパン/ズームする (表示の切替ではなく移動)。
+
+### 付箋
+
+動詞は2つだけ (合議機能は v11 で撤去済み)。
+
+1. **貼る** — 「🗒 付箋」ボタンで付箋を追加し、やることを書く。
 2. **渡す** — 付箋をエージェントカードの上にドラッグして重ねると、その
    エージェントが単独で実行し、結果の要約が付箋に書き込まれる。
 
-- 付箋は `notes.json` に自動保存され、再起動後も盤面が復元されます。
+付箋は `notes.json` に自動保存され、再起動後も盤面が復元されます。
+
+### Attention Inbox
+
+右下のピルに「人間の判断が要るもの」(承認リクエスト・エラー等) が全陣地
+横断で集まります。各項目から該当エージェントへジャンプして応答できます。
 
 ## UI ガイド
 
-- **Project Summary**: 左上の "Project Summary" ボタンから、プロジェクト全体の
-  前提や方針を Markdown テキストとして編集。各エージェントの prompt 先頭に
-  注入される。
+- **Project Summary**: プロジェクト全体の前提や方針を Markdown テキストとして
+  編集。各エージェントの prompt 先頭に注入される。
 - **Agent History**: Inspector の "直近の応答履歴" で、選択中エージェントの
-  最近の入力・応答・dispatch 数を確認可能。
-- **Node glow**: マインドマップ上のノードは状態に応じて光る。starting=黄、
+  最近の入力・応答を確認可能。
+- **状態リング**: エージェントカードは状態に応じて光る。starting=黄、
   running=シアン、error=赤。
-- **Root agent**: マインドマップ左上に固定で表示される 👤 User ノードから
-  任意のエージェントへ線を引くと、そのエージェントが自動で root になります。
-  User → root のシアン破線は表示専用 (`graph.json` には保存されない)。
-  互換のため Inspector / ノードカードの "Set as Root" ボタンも引き続き使えます。
 - **Terminal input**: 最下部 Terminal は入力対応。interactive mode の承認
   プロンプトに直接タイプで応答できる。
 - **言語切替**: ヘッダー右上の `EN / 日本語` セレクタで UI とエージェントへの

@@ -11,7 +11,8 @@ excluding third-party components listed in THIRD_PARTY_NOTICES.md.
 
 Copyright (c) 2026 Reo Komai
 
-Change Date: 2030-06-01
+Change Date: Four years from the date the specific version of the Licensed
+Work is first publicly distributed under this License.
 
 Change License: Apache License, Version 2.0
 
@@ -19,13 +20,19 @@ Additional Use Grant:
 
 You may make production use of the Licensed Work for:
 
-- personal use;
-- educational, learning, and research use;
-- development, testing, evaluation, and proof-of-concept use;
-- self-hosted use for yourself or your organization;
-- internal business use within your company, school, lab, nonprofit, or other
-  organization; and
+- personal use by an individual, on machines the individual owns or controls,
+  where the use is not on behalf of, or primarily for the benefit of, a
+  company or other organization;
+- educational, learning, and non-commercial research use, including at
+  schools, universities, and research labs;
+- development, testing, evaluation, and proof-of-concept use, including
+  time-limited evaluation within an organization; and
 - creating forks, modifications, integrations, and pull requests.
+
+Any other production use requires a commercial license from the Licensor.
+For clarity, this includes production use within, on behalf of, or primarily
+for the benefit of a company, nonprofit, government body, or other
+organization (regardless of whether the software is self-hosted).
 
 The Additional Use Grant does not permit you to offer, sell, resell, provide,
 host, or operate the Licensed Work, a modified version of the Licensed Work, or

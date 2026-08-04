@@ -1,16 +1,16 @@
 # MAO
 
-MAO is an AI agent organization OS.
+Mission control for your AI agents.
 
-It lets you connect multiple AI coding and assistant CLIs, such as Claude,
-Codex, GPT-compatible tools, Gemini, Grok, and custom commands, assign roles to
-them, and coordinate their work as an interactive organization chart. Agents can
-be arranged as upstream managers, downstream workers, and peers, then run
-together through a visual map and embedded terminals.
+MAO is a desktop app that lets you see and drive multiple running AI CLI
+agents — Claude, Codex, Gemini, Grok, and custom commands — on a single board.
+Your folder hierarchy is drawn as a tree, folders light up while agents work
+inside them, sticky notes hand tasks to agents with a drag, and everything
+that needs a human decision lands in one inbox.
 
-MAO is a source-available project. Self-hosting, personal use, learning,
-research, development, internal company use, forks, modifications, and pull
-requests are allowed under the license terms.
+MAO is a source-available project. **Personal use, education, research,
+evaluation, forks, modifications, and pull requests are free.** Production use
+within a company or other organization requires a commercial license.
 
 Commercial hosted competing services are not allowed. You may not offer MAO, a
 modified MAO, or a substantially similar derivative as a hosted SaaS, cloud
@@ -38,13 +38,15 @@ Licensing and commercial inquiries:
 
 ## Features
 
-- **Sticky-note canvas (v4)**: stick a note, then drop it on an agent to hand it
+- **Territory tree**: your folder hierarchy drawn as a left-to-right tree —
+  folders with running agents light up in their branch color; click a
+  territory to expand the agent cards inside
+- **Sticky notes**: stick a note, then drop it on an agent to hand it
   off for a one-shot run — the result is written back onto the note (persisted
   in `notes.json`)
-- Visual multi-agent organization map
-- Upstream, downstream, and peer relationship awareness
-- Independent organization planner for generating active-agent briefs
-- Interactive agent terminals backed by tmux
+- **Attention Inbox**: approvals, errors, and anything else needing a human
+  decision, collected in one place across all territories
+- Interactive agent terminals backed by tmux (rendered with xterm.js)
 - Support for Claude, Codex, Gemini, Grok, and custom allowlisted commands
 - Per-agent execution modes and permission policy controls
 - Per-agent skills directory and enabled skill hints
