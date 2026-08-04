@@ -39,6 +39,7 @@ import {
 import { maskSecrets } from "../src/utils/maskSecrets";
 import { buildActiveOrganization, buildOrganizationInstruction } from "../src/utils/organization";
 import { AgentRunner } from "./agentRunner";
+import { ensureGuiPath } from "./env";
 import { Installer } from "./installer";
 import { MCPPermissionServer } from "./mcpPermissionServer";
 import { createShellTestAgent, PtyManager } from "./ptyManager";
@@ -148,6 +149,10 @@ const groupsSnapshotSchema = z.object({
 }) satisfies z.ZodType<ProjectGroupsSnapshot>;
 
 const defaultGroupsSnapshot = (): ProjectGroupsSnapshot => ({ groups: [] });
+
+// Finder 起動 (ダブルクリック) でも tmux / 各 CLI が見つかるよう、何かを spawn する前に
+// ログインシェルの PATH を process.env に反映する (dev のターミナル起動では実質 no-op)。
+ensureGuiPath();
 
 const ptyManager = new PtyManager();
 const tmuxManager = new TmuxManager();
