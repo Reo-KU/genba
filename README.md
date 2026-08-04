@@ -38,12 +38,17 @@ Licensing and commercial inquiries:
 
 ## Features
 
+- **Sticky-note canvas (v4)**: stick a note, then drop it on an agent to hand it
+  off for a one-shot run — the result is written back onto the note (persisted
+  in `notes.json`)
 - Visual multi-agent organization map
 - Upstream, downstream, and peer relationship awareness
 - Independent organization planner for generating active-agent briefs
-- Interactive agent terminals backed by tmux and ttyd
+- Interactive agent terminals backed by tmux
 - Support for Claude, Codex, Gemini, Grok, and custom allowlisted commands
 - Per-agent execution modes and permission policy controls
+- Per-agent skills directory and enabled skill hints
+- Per-agent Obsidian vault access guidance
 - Persistent task artifacts under `mao_artifacts/`
 - Temporary MAO control files under `.mao/`
 
@@ -55,7 +60,6 @@ Required:
 |---|---|
 | Node.js 20+ | App runtime and build tooling |
 | tmux | Interactive agent session backend |
-| ttyd | Embedded web terminal for tmux |
 
 Optional agent CLIs:
 
@@ -106,6 +110,32 @@ Inside each agent working directory, MAO may create:
 `.mao/` is control state and may be cleaned or regenerated. Do not store final
 deliverables there. Use `mao_artifacts/` for outputs that should survive
 organization saves and task cleanup.
+
+## Obsidian Memory
+
+Each agent can optionally be given an Obsidian vault path. When configured, MAO
+uses the vault as durable organizational memory:
+
+You only need to create or choose the vault folder itself. The `MAO/` memory
+folder inside the vault is created automatically when you save the organization
+or start a task.
+
+```text
+Obsidian Vault/
+  MAO/
+    organization.md
+    agents/
+      <agent>.md
+    tasks/
+      <taskId>.md
+    decisions/
+```
+
+Organization saves update `organization.md` and each active agent note. Task
+starts create a task note, and agent completions append result summaries,
+dispatches, and artifact paths to that task note. Interactive sessions can still
+hold short-term conversation context, while Obsidian keeps the long-term memory
+needed to recover after restarts or context loss.
 
 ## License Summary
 

@@ -4,6 +4,9 @@ import type {
   AgentRunRequest,
   AgentRunResult,
   AgentSummary,
+  BoardsSnapshot,
+  ProjectGroupsSnapshot,
+  NotesSnapshot,
   GraphEdge,
   GraphNode,
   InstallProgress,
@@ -33,6 +36,9 @@ type MaoApi = {
     loadSummary: () => Promise<string>;
     saveSummary: (text: string) => Promise<void>;
   };
+  planner: {
+    ask: (message: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  };
   organization: {
     save: (request: OrganizationSaveRequest) => Promise<OrganizationSaveResult>;
   };
@@ -44,19 +50,32 @@ type MaoApi = {
     create: (task: Task) => Promise<Task>;
     list: () => Promise<Task[]>;
   };
+  notes: {
+    load: () => Promise<NotesSnapshot>;
+    save: (snapshot: NotesSnapshot) => Promise<void>;
+  };
+  boards: {
+    load: () => Promise<BoardsSnapshot>;
+    save: (snapshot: BoardsSnapshot) => Promise<void>;
+  };
+  groups: {
+    load: () => Promise<ProjectGroupsSnapshot>;
+    save: (snapshot: ProjectGroupsSnapshot) => Promise<void>;
+  };
+  dialog: {
+    pickDirectory: () => Promise<string | null>;
+  };
   pty: {
     spawn: (agentId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
     write: (agentId: string, data: string) => Promise<void>;
     kill: (agentId: string) => Promise<void>;
+    resize: (agentId: string, cols: number, rows: number) => Promise<void>;
   };
   log: {
     append: (agentId: string, data: string) => Promise<void>;
   };
-  tty: {
-    getUrl: () => Promise<string | null>;
-  };
   tmux: {
-    selectWindow: (agentId: string) => Promise<boolean>;
+    watch: (agentId: string) => Promise<boolean>;
   };
   setup: {
     check: () => Promise<SetupCheckResult>;

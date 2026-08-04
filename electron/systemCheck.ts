@@ -28,16 +28,9 @@ const checks: ToolSpec[] = [
       linux: "sudo apt install tmux"
     }
   },
-  {
-    name: "ttyd",
-    category: "required",
-    why: "Renders the tmux session as the embedded web terminal.",
-    install: {
-      darwin: "brew install ttyd",
-      win32: "wsl --install -d Ubuntu  # then  sudo apt install ttyd",
-      linux: "sudo apt install ttyd  # or build from https://github.com/tsl0922/ttyd"
-    }
-  },
+  // ttyd はセットアップ要件から外した。tmux の出力は pipe-pane → IPC で renderer の
+  // xterm.js に直接流すようになり、埋め込み Web ターミナル (常駐サーバ + WebSocket +
+  // 2 段目のエミュレータ) は不要になっている。
   {
     name: "claude",
     category: "optional",
@@ -120,10 +113,6 @@ async function getAutoInstall(toolName: string): Promise<AutoInstallCommand | nu
   if (process.platform === "darwin") {
     if (toolName === "tmux" && hasBrew) {
       return { command: "brew", args: ["install", "tmux"] };
-    }
-
-    if (toolName === "ttyd" && hasBrew) {
-      return { command: "brew", args: ["install", "ttyd"] };
     }
 
     if (toolName === "claude" && hasNpm) {

@@ -1,8 +1,11 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { getTranslations } from "../i18n";
-import { useAppStore } from "../store/useAppStore";
+import { AGENT_TYPE_COMMAND, useAppStore } from "../store/useAppStore";
 import type { Agent, AgentLocale, AgentSummary } from "../types";
 import AgentForm from "./AgentForm";
+
+/** 設定ウィンドウで選べるエージェントの種類。 */
+const AGENT_TYPES: Agent["type"][] = ["claude", "codex", "gemini", "grok", "custom"];
 
 const policyBadgeClasses: Record<NonNullable<Agent["permissionPolicy"]>, string> = {
   ask: "border-brand-sunsetA/50 bg-brand-sunsetA/10 text-brand-sunsetA",
@@ -33,11 +36,13 @@ export default function InspectorPopover(): ReactElement | null {
   const selectedAgentId = useAppStore((state) => state.selectedAgentId);
   const setSelectedAgentId = useAppStore((state) => state.setSelectedAgentId);
   const selectNode = useAppStore((state) => state.selectNode);
-  const setRoot = useAppStore((state) => state.setRoot);
   const startAgent = useAppStore((state) => state.startAgent);
   const stopAgent = useAppStore((state) => state.stopAgent);
   const updateAgent = useAppStore((state) => state.updateAgent);
+  const deleteAgent = useAppStore((state) => state.deleteAgent);
   const runningTaskId = useAppStore((state) => state.runningTaskId);
+  const projectGroups = useAppStore((state) => state.projectGroups);
+  const assignNodeToGroup = useAppStore((state) => state.assignNodeToGroup);
   const locale = useAppStore((state) => state.locale);
   const t = getTranslations(locale);
   const [editing, setEditing] = useState(false);
@@ -105,6 +110,9 @@ export default function InspectorPopover(): ReactElement | null {
     return null;
   }
 
+  const currentGroupId = selectedNode.groupId ?? null;
+  const currentGroup = currentGroupId ? projectGroups.find((group) => group.id === currentGroupId) ?? null : null;
+
   const start = async (): Promise<void> => {
     setError(null);
     try {
@@ -123,9 +131,25 @@ export default function InspectorPopover(): ReactElement | null {
     }
   };
 
+  const removeAgent = async (): Promise<void> => {
+    if (!window.confirm(t.inspector.deleteConfirm(agent.name))) {
+      return;
+    }
+    setError(null);
+    try {
+      // 稼働中のまま消すと PTY/tmux が孤児になるので、先に確実に止めてから削除する。
+      if (agent.status === "running" || agent.status === "starting") {
+        await stopAgent(agent.id).catch(() => undefined);
+      }
+      await deleteAgent(agent.id);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Failed to delete agent.");
+    }
+  };
+
   return (
-    <aside className="fixed bottom-6 right-6 top-6 z-30 flex w-[420px] flex-col overflow-hidden rounded-2xl border border-brand-line bg-brand-surface/95 text-brand-text shadow-2xl backdrop-blur-lg">
-      <header className="flex items-center justify-between border-b border-brand-line px-5 py-4">
+    <aside className="fixed bottom-5 left-5 top-5 z-40 flex w-[340px] flex-col overflow-hidden rounded-2xl border border-brand-line/80 bg-brand-surface/88 text-brand-text shadow-[0_24px_70px_rgba(29,29,31,0.14)] backdrop-blur-2xl">
+      <header className="flex items-center justify-between border-b border-brand-line/70 px-4 py-3">
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold">{agent.name}</h2>
           <p className="text-[10px] uppercase tracking-widest text-brand-textDim">{agent.type}</p>
@@ -133,15 +157,42 @@ export default function InspectorPopover(): ReactElement | null {
         <button
           type="button"
           onClick={close}
-          className="rounded-full px-2 py-1 text-brand-textDim hover:bg-brand-surfaceHi hover:text-brand-text"
+          className="flex h-7 w-7 items-center justify-center rounded-full text-brand-textDim hover:bg-brand-surfaceHi/80 hover:text-brand-text"
           aria-label="Close"
         >
           X
         </button>
       </header>
 
-      <div className="flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-5">
+      <div className="flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-4">
         <Info label={t.inspector.status} value={agent.status} />
+
+        {/* 種類はエージェント作成時には聞かず (既定で作る)、ここで選ぶ。 */}
+        <label className="grid gap-1 text-sm">
+          <span className="text-xs uppercase tracking-wide text-brand-textDim">{t.inspector.agentType}</span>
+          <select
+            value={agent.type}
+            onChange={(event) => {
+              const nextType = event.target.value as Agent["type"];
+              // command が「その種類の既定値のまま」なら新しい種類の既定値へ追従させる。
+              // 手で書き換えている場合は尊重して触らない。
+              const isDefaultCommand = agent.command.trim() === AGENT_TYPE_COMMAND[agent.type];
+              void updateAgent({
+                ...agent,
+                type: nextType,
+                command: isDefaultCommand ? AGENT_TYPE_COMMAND[nextType] : agent.command
+              });
+            }}
+            className="rounded border border-brand-line bg-brand-bg px-3 py-2 text-brand-text outline-none focus:border-brand-sunsetA"
+          >
+            {AGENT_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <label className="grid gap-1 text-sm">
           <span className="text-xs uppercase tracking-wide text-brand-textDim">{t.inspector.mode}</span>
           <select
@@ -178,12 +229,66 @@ export default function InspectorPopover(): ReactElement | null {
           {isAskInteractive ? <p className="mt-1 text-[11px] text-brand-textDim">{t.inspector.askInteractiveHint}</p> : null}
         </div>
 
+        <label className="grid gap-1 text-sm">
+          <span className="text-xs uppercase tracking-wide text-brand-textDim">{t.inspector.project}</span>
+          <select
+            value={currentGroupId ?? ""}
+            onChange={(event) => {
+              const value = event.target.value;
+              void assignNodeToGroup(selectedNode.id, value === "" ? null : value);
+            }}
+            className="rounded border border-brand-line bg-brand-bg px-3 py-2 text-brand-text outline-none focus:border-brand-sunsetA"
+          >
+            <option value="">{t.inspector.projectNone}</option>
+            {projectGroups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <Info label={t.inspector.command} value={[agent.command, ...(agent.args ?? [])].join(" ")} />
         <Info label={t.inspector.workingDirectory} value={agent.workingDirectory || "-"} />
+        {currentGroup ? (
+          <p className="-mt-3 text-[11px] text-brand-textDim">{t.inspector.workingDirectoryFromProject(currentGroup.name)}</p>
+        ) : null}
         <p className="text-[10px] leading-relaxed text-brand-textDim">
           {t.inspector.workspaceMaoHint}
         </p>
         <Info label={t.inspector.role} value={agent.role || "-"} />
+
+        {/* システムプロンプトは長くなりがちなので、選択したエージェントの下で開いて全文を読めるようにする。 */}
+        <details className="group/prompt rounded border border-brand-line/70 bg-brand-surfaceHi/40" open>
+          <summary className="cursor-pointer list-none px-2 py-1.5 text-[10px] uppercase tracking-wide text-brand-textDim">
+            {t.inspector.systemPrompt}
+          </summary>
+          <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words px-2 pb-2 font-mono text-[11px] leading-relaxed text-brand-text">
+            {agent.systemPrompt?.trim() || t.inspector.systemPromptEmpty}
+          </pre>
+        </details>
+
+        <Info
+          label={t.inspector.skills}
+          value={
+            agent.skillsDirectory
+              ? [
+                  agent.skillsDirectory,
+                  (agent.skillNames ?? []).length > 0 ? `(${(agent.skillNames ?? []).join(", ")})` : ""
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              : "-"
+          }
+        />
+        <Info
+          label={t.inspector.obsidian}
+          value={
+            agent.obsidianVaultPath
+              ? `${agent.obsidianVaultPath}${agent.obsidianNotesSubdir ? ` / ${agent.obsidianNotesSubdir}` : ""}`
+              : "-"
+          }
+        />
 
         {error ? <p className="rounded border border-brand-ember/60 bg-brand-ember/10 p-2 text-sm text-brand-ember">{error}</p> : null}
 
@@ -212,17 +317,17 @@ export default function InspectorPopover(): ReactElement | null {
           </button>
           <button
             type="button"
-            onClick={() => void setRoot(selectedNode.id)}
-            className="rounded border border-brand-line px-3 py-2 text-sm text-brand-textDim hover:bg-brand-surfaceHi hover:text-brand-text"
-          >
-            {t.inspector.setAsRoot}
-          </button>
-          <button
-            type="button"
             onClick={() => setEditing(true)}
             className="rounded border border-brand-line px-3 py-2 text-sm text-brand-textDim hover:bg-brand-surfaceHi hover:text-brand-text"
           >
             {t.agentList.edit}
+          </button>
+          <button
+            type="button"
+            onClick={() => void removeAgent()}
+            className="rounded border border-brand-ember/60 px-3 py-2 text-sm text-brand-ember hover:bg-brand-ember/10"
+          >
+            {t.inspector.delete}
           </button>
         </div>
 
@@ -296,11 +401,6 @@ function HistoryEntry({
     <div className="min-w-0 overflow-hidden rounded-xl bg-brand-bg/50 p-4">
       <div className="mb-3 flex min-w-0 items-center justify-between gap-2 text-[10px] uppercase tracking-widest text-brand-textDim">
         <span className="min-w-0 truncate">{formatTime(entry.at)} · {entry.taskId.slice(-6)}</span>
-        {entry.emittedDispatches.length > 0 ? (
-          <span className="shrink-0 rounded-full bg-brand-violet/15 px-2 py-0.5 text-brand-violet">
-            {t.inspector.historyDispatchBadge(entry.emittedDispatches.length)}
-          </span>
-        ) : null}
       </div>
       <p className="mb-3 line-clamp-2 min-w-0 break-all text-xs leading-relaxed text-brand-text" title={entry.receivedBody}>
         {entry.receivedBody || t.inspector.historyEmptyInput}

@@ -5,10 +5,6 @@ import { useAppStore } from "../store/useAppStore";
 
 export default function OrganizationBar(): ReactElement | null {
   const agents = useAppStore((state) => state.agents);
-  const nodes = useAppStore((state) => state.nodes);
-  const edges = useAppStore((state) => state.edges);
-  const rootNodeId = useAppStore((state) => state.rootNodeId);
-  const dirty = useAppStore((state) => state.organizationDirty);
   const saving = useAppStore((state) => state.organizationSaving);
   const error = useAppStore((state) => state.organizationError);
   const saveOrganization = useAppStore((state) => state.saveOrganization);
@@ -16,10 +12,10 @@ export default function OrganizationBar(): ReactElement | null {
   const t = getTranslations(locale);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const organization = buildActiveOrganization({ agents, nodes, edges, rootNodeId, locale });
+  const organization = buildActiveOrganization({ agents, locale });
   const activeCount = organization.members.length;
 
-  if (!dirty && !error && !localError) {
+  if (activeCount === 0 && !error && !localError) {
     return null;
   }
 
@@ -35,7 +31,7 @@ export default function OrganizationBar(): ReactElement | null {
   return (
     <div className="fixed left-1/2 top-5 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-brand-line bg-brand-surface/95 px-4 py-2 text-sm text-brand-text shadow-2xl backdrop-blur">
       <div className="min-w-0">
-        <div className="font-medium">{t.organization.changed}</div>
+        <div className="font-medium">{t.organization.membersLabel}</div>
         <div className="text-[11px] text-brand-textDim">
           {t.organization.activeAgents(activeCount)}
         </div>

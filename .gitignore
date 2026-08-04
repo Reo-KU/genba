@@ -1,5 +1,18 @@
-node_modules
+# `node_modules 2` (symlink の複製) や `node_modules 4/` まで拾うためのワイルドカード。
+node_modules*
 dist
 out
 data/
 .DS_Store
+.claude/
+node_modules.nosync/
+
+# iCloud の同期衝突で生まれる複製 (`node_modules 2/`, `src 2/`, `electron 2/` など)。
+# 中身は本物のコピーなので絶対にコミットしない。根本対処はリポジトリを iCloud 外へ移すこと
+# (docs/NEXT.ja.md §4)。新しい番号のものが出たらここに足す。
+electron 2/
+src 2/
+
+# v11 の合議撤去で参照ゼロになった死にコード。iCloud の dataless ファイルになっていて
+# 読もうとしたプロセスがブロックされるため、git にも触らせない (詳細は docs/NEXT.ja.md §3④)。
+*.unused-v11

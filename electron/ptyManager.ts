@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { spawn, type IPty } from "node-pty";
 import type { Agent, PtyDataEvent, PtyStatusEvent } from "../src/types";
+import { getCommandName, normalizeAgentCommand } from "./commandLine";
+import { utf8Env } from "./env";
 
 type PtyExitEvent = {
   agentId: string;
@@ -27,6 +29,7 @@ const ALLOWED_COMMANDS = new Set([
   "claude",
   "codex",
   "grok",
+  "gemini",
   "sh",
   "bash",
   "zsh",
@@ -34,12 +37,6 @@ const ALLOWED_COMMANDS = new Set([
   "python3",
   "node"
 ]);
-
-const getCommandName = (command: string): string => {
-  const normalized = command.trim();
-  const parts = normalized.split(/[\\/]/);
-  return parts[parts.length - 1] ?? normalized;
-};
 
 export declare interface PtyManager {
   on<K extends keyof PtyManagerEvents>(eventName: K, listener: (...args: PtyManagerEvents[K]) => void): this;
@@ -73,17 +70,18 @@ export class PtyManager extends EventEmitter {
       // MVP only warns here. A confirmation dialog should gate this later.
     }
 
-    const commandName = getCommandName(agent.command);
+    const normalizedCommand = normalizeAgentCommand(agent);
+    const commandName = getCommandName(normalizedCommand.command);
     if (!ALLOWED_COMMANDS.has(commandName)) {
       this.setStatus(agent.id, "error");
       return { ok: false, error: `Command not in allowlist: ${commandName}` };
     }
 
     try {
-      const ptyProcess = spawn(agent.command, agent.args ?? [], {
+      const ptyProcess = spawn(normalizedCommand.command, normalizedCommand.args, {
         name: "xterm-256color",
         cwd: absDir,
-        env: process.env as Record<string, string>,
+        env: utf8Env() as Record<string, string>,
         cols: 120,
         rows: 32
       });
@@ -127,6 +125,19 @@ export class PtyManager extends EventEmitter {
 
   has(agentId: string): boolean {
     return this.processes.has(agentId);
+  }
+
+  resize(agentId: string, cols: number, rows: number): void {
+    const managed = this.processes.get(agentId);
+    if (!managed || !Number.isFinite(cols) || !Number.isFinite(rows)) {
+      return;
+    }
+
+    try {
+      managed.process.resize(Math.max(20, Math.floor(cols)), Math.max(5, Math.floor(rows)));
+    } catch {
+      // PTY が既に閉じている場合は無視してよい。
+    }
   }
 
   kill(agentId: string): void {

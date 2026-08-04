@@ -1,10 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { execFileSync, spawn as cpSpawn, type ChildProcess } from "node:child_process";
+import { utf8Env } from "./env";
 import { EventEmitter } from "node:events";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import fs from "fs-extra";
 import type { Agent, PtyDataEvent, PtyStatusEvent } from "../src/types";
+import { getCommandName, normalizeAgentCommand } from "./commandLine";
 
 const SESSION_NAME = "mao-orch";
 const shellQuote = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
@@ -32,7 +34,7 @@ export class TmuxManager extends EventEmitter {
 
   private tmux(args: string[]): string {
     try {
-      return execFileSync("tmux", args, { encoding: "utf8" });
+      return execFileSync("tmux", ["-u", ...args], { encoding: "utf8", env: utf8Env() });
     } catch (error) {
       throw new Error(`tmux ${args.join(" ")} failed: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -55,7 +57,9 @@ export class TmuxManager extends EventEmitter {
 
     if (isNewLog) {
       try {
-        const snapshot = this.tmux(["capture-pane", "-p", "-t", paneTarget, "-S", "-80"]);
+        // -e: 色などのエスケープシーケンスを残す。xterm.js が唯一の表示先になったので、
+        // 初回スナップショットも素のテキストではなく見た目付きで復元する。
+        const snapshot = this.tmux(["capture-pane", "-p", "-e", "-t", paneTarget, "-S", "-80"]);
         if (snapshot.trim().length > 0) {
           fs.appendFileSync(logPath, `${snapshot}\n`);
           this.emit("data", { agentId, data: `${snapshot}\n` });
@@ -126,9 +130,52 @@ export class TmuxManager extends EventEmitter {
     return null;
   }
 
+  /**
+   * 現存するエージェントに対応しない `agent-*` window を tmux から掃除する。
+   *
+   * tmux サーバーはアプリを再起動しても生き残るため、過去に削除したエージェントや
+   * 前のセッションの window が溜まり続け、下部ターミナルのタブが残骸だらけになる。
+   * 起動時に一度だけ実行して、agents.json に無いものを消す。
+   */
+  pruneOrphanWindows(validAgentIds: string[]): number {
+    try {
+      execFileSync("tmux", ["-u", "has-session", "-t", SESSION_NAME], { stdio: "ignore", env: utf8Env() });
+    } catch {
+      // セッションがまだ無い = 掃除するものも無い
+      return 0;
+    }
+
+    const keep = new Set(validAgentIds.map((id) => this.windowNameFor(id)));
+    let removed = 0;
+
+    try {
+      const lines = this.tmux(["list-windows", "-t", SESSION_NAME, "-F", "#{window_name}"]).split("\n");
+      for (const rawName of lines) {
+        const name = rawName.trim();
+        // MAO が作った agent window だけが対象 (welcome など他の window は触らない)
+        if (!name.startsWith("agent-") || keep.has(name)) {
+          continue;
+        }
+        try {
+          execFileSync("tmux", ["-u", "kill-window", "-t", `${SESSION_NAME}:${name}`], {
+            stdio: "ignore",
+            env: utf8Env()
+          });
+          removed += 1;
+        } catch {
+          // 既に消えている場合は無視
+        }
+      }
+    } catch {
+      return removed;
+    }
+
+    return removed;
+  }
+
   private ensureSession(): void {
     try {
-      execFileSync("tmux", ["has-session", "-t", SESSION_NAME], { stdio: "ignore" });
+      execFileSync("tmux", ["-u", "has-session", "-t", SESSION_NAME], { stdio: "ignore", env: utf8Env() });
     } catch {
       this.tmux(["new-session", "-d", "-s", SESSION_NAME, "-n", "welcome", "-x", "200", "-y", "50"]);
     }
@@ -158,7 +205,12 @@ export class TmuxManager extends EventEmitter {
 
     const windowName = this.windowNameFor(agent.id);
     const cwd = agent.workingDirectory || process.env.HOME || "/tmp";
-    const fullCommand = [agent.command, ...(agent.args ?? [])]
+    const normalizedCommand = normalizeAgentCommand(agent);
+    const commandName = getCommandName(normalizedCommand.command);
+    if (!["claude", "codex", "grok", "gemini", "sh", "bash", "zsh", "python", "python3", "node"].includes(commandName)) {
+      return { ok: false, error: `Command not in allowlist: ${commandName}` };
+    }
+    const fullCommand = [normalizedCommand.command, ...normalizedCommand.args]
       .filter(Boolean)
       .map(shellQuote)
       .join(" ");
@@ -188,7 +240,7 @@ export class TmuxManager extends EventEmitter {
       this.tmux(["send-keys", "-t", paneTarget, fullCommand, "Enter"]);
     } catch (error) {
       try {
-        execFileSync("tmux", ["kill-pane", "-t", paneTarget], { stdio: "ignore" });
+        execFileSync("tmux", ["-u", "kill-pane", "-t", paneTarget], { stdio: "ignore", env: utf8Env() });
       } catch {
         // Best effort cleanup.
       }
@@ -233,14 +285,28 @@ export class TmuxManager extends EventEmitter {
   }
 
   kill(agentId: string): void {
+    // agentToPane はメモリ上のキャッシュなので、アプリを再起動すると空になる。
+    // tmux サーバーはアプリより長生きするため、キャッシュだけを見ると
+    // 「再起動後に削除したエージェントの window が tmux に残り続ける」ことになる。
+    // window 名は agentId から決定的に決まるので、キャッシュに無ければ名前で消す。
     const paneTarget = this.agentToPane.get(agentId);
     if (paneTarget) {
       try {
-        execFileSync("tmux", ["kill-pane", "-t", paneTarget], { stdio: "ignore" });
+        execFileSync("tmux", ["-u", "kill-pane", "-t", paneTarget], { stdio: "ignore", env: utf8Env() });
       } catch {
         // Pane may already be gone.
       }
       this.agentToPane.delete(agentId);
+    }
+
+    // pane が残っていた場合も含め、window ごと確実に消す。
+    try {
+      execFileSync("tmux", ["-u", "kill-window", "-t", `${SESSION_NAME}:${this.windowNameFor(agentId)}`], {
+        stdio: "ignore",
+        env: utf8Env()
+      });
+    } catch {
+      // window が既に無い場合は何もしなくてよい。
     }
 
     const tail = this.tailProcs.get(agentId);
@@ -266,7 +332,37 @@ export class TmuxManager extends EventEmitter {
     this.emit("status", { agentId, status: "stopped" });
   }
 
+  /**
+   * 購読 (pipe-pane + tail + ログファイル) だけを畳み、tmux セッションは残す。
+   *
+   * アプリ終了時に呼ぶ。以前はここで `kill-session` していたが、それだと
+   * 「アプリが落ちてもエージェントは生き続ける」という tmux を挟んだ意味が消え、
+   * 開発中に electron/ を編集するたび (= Electron 再起動のたび) にエージェントが全滅していた。
+   * 次回起動時は spawn()/watch() が ensureCapture() を呼び直して購読が復活する。
+   */
+  detachAll(): void {
+    for (const paneTarget of this.agentToPane.values()) {
+      try {
+        // 引数なしの pipe-pane はパイプを止める。放置すると MAO 終了後も
+        // tmux 側の `cat >> /tmp/mao_tmux_*.log` が動き続けて tmp を食う。
+        execFileSync("tmux", ["-u", "pipe-pane", "-t", paneTarget], { stdio: "ignore", env: utf8Env() });
+      } catch {
+        // Pane may already be gone.
+      }
+    }
+
+    this.releaseLocalResources();
+  }
+
   killAll(): void {
+    // セッションごと消すと welcome window や MAO 以外の window まで巻き添えになるため、
+    // agent-* window だけを落とす (pruneOrphanWindows の「残すものが無い」版)。
+    this.pruneOrphanWindows([]);
+    this.releaseLocalResources();
+  }
+
+  /** tail プロセス・一時ログ・pane キャッシュを解放する (tmux 側には触らない)。 */
+  private releaseLocalResources(): void {
     for (const tail of this.tailProcs.values()) {
       try {
         tail.kill();
@@ -275,22 +371,59 @@ export class TmuxManager extends EventEmitter {
       }
     }
 
+    for (const logFile of this.logFiles.values()) {
+      try {
+        fs.unlinkSync(logFile);
+      } catch {
+        // Best effort cleanup.
+      }
+    }
+
     this.tailProcs.clear();
     this.logFiles.clear();
     this.agentToPane.clear();
-
-    try {
-      execFileSync("tmux", ["kill-session", "-t", SESSION_NAME], { stdio: "ignore" });
-    } catch {
-      // Session may not exist.
-    }
   }
 
   getSessionName(): string {
     return SESSION_NAME;
   }
 
-  selectWindow(agentId: string): boolean {
+  /**
+   * renderer の xterm.js が持つ表示サイズを tmux の window に伝える。
+   *
+   * ttyd を外して「tmux の出力を IPC で xterm.js に直接流す」構成にしたため、
+   * リサイズ通知は誰もやってくれない。ここを怠るとエージェント側は 200x50 のつもりで
+   * 描画し、パネル幅と食い違って行が折り返し崩れする。
+   *
+   * `resize-window -x/-y` はその window を手動サイズに切り替える。直接 `tmux attach` した
+   * 端末は MAO 側のサイズのまま見えるので、端末幅に戻したいときは `tmux resize-window -A`。
+   */
+  resize(agentId: string, cols: number, rows: number): void {
+    const paneTarget = this.findPaneForAgent(agentId);
+    if (!paneTarget || !Number.isFinite(cols) || !Number.isFinite(rows)) {
+      return;
+    }
+
+    const width = Math.max(20, Math.min(500, Math.floor(cols)));
+    const height = Math.max(5, Math.min(200, Math.floor(rows)));
+
+    try {
+      this.tmux(["resize-window", "-t", paneTarget, "-x", String(width), "-y", String(height)]);
+    } catch {
+      // サイズ変更に失敗しても表示は続行できる (折り返しがずれるだけ)。
+    }
+  }
+
+  /**
+   * そのエージェントの出力購読を開始する (パネルでタブを開いたとき用)。
+   *
+   * アプリを再起動すると tailProcs / logFiles は空になるが tmux の pane は生きている。
+   * 表示のたびにここを通すことで「再起動後にタブを開いても何も流れてこない」を防ぐ。
+   * 併せて session の current window も合わせておく (直接 `tmux attach` したときに
+   * 最後に見ていたエージェントに着地する)。既に attach 済みのクライアントは
+   * 奪わない — 別の window を見ている最中に画面を飛ばされるのは邪魔なだけなので。
+   */
+  watch(agentId: string): boolean {
     const paneTarget = this.findPaneForAgent(agentId);
     if (!paneTarget) {
       return false;
@@ -300,21 +433,6 @@ export class TmuxManager extends EventEmitter {
       this.ensureCapture(agentId, paneTarget);
       this.tmux(["select-window", "-t", paneTarget]);
       this.tmux(["select-pane", "-t", paneTarget]);
-      try {
-        const clients = this.tmux(["list-clients", "-t", SESSION_NAME, "-F", "#{client_name}"])
-          .split("\n")
-          .map((line) => line.trim())
-          .filter(Boolean);
-        for (const client of clients) {
-          try {
-            this.tmux(["switch-client", "-c", client, "-t", paneTarget]);
-          } catch {
-            // Best effort: select-window above is enough for detached session state.
-          }
-        }
-      } catch {
-        // No attached clients yet.
-      }
       return true;
     } catch {
       return false;

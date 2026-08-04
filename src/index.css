@@ -10,9 +10,17 @@
   }
 }
 
+/* リングは「要素ごと回転」させると、正方形の対角線がカードの外周を大きくはみ出して
+   陣地の枠の外まで振れてしまう。角度そのものをアニメーションさせて枠内に収める。 */
+@property --mao-ring-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
 @keyframes mao-ring-rotate {
   to {
-    transform: rotate(360deg);
+    --mao-ring-angle: 360deg;
   }
 }
 
@@ -30,37 +38,23 @@
 }
 
 .mao-ring-running::before {
-  background: conic-gradient(from 0deg, transparent, theme("colors.brand.aurora"), transparent);
+  background: conic-gradient(from var(--mao-ring-angle), transparent, theme("colors.brand.aurora"), transparent);
   animation: mao-ring-rotate 4s linear infinite;
 }
 
 .mao-ring-starting::before {
-  background: conic-gradient(from 0deg, transparent, theme("colors.brand.sunsetA"), theme("colors.brand.sunsetB"), transparent);
+  background: conic-gradient(from var(--mao-ring-angle), theme("colors.brand.sunsetA"), theme("colors.brand.sunsetB"), transparent);
+  animation: mao-ring-rotate 4s linear infinite;
 }
 
-/* edges */
+/* edges — v9: 樹形図 (マインドマップ) の線。根→フォルダ→エージェントを結ぶだけの非インタラクティブな
+   表示要素で、クリック・選択・ホバー強調の対象ではない (MindMapCanvas.tsx で selectable:false /
+   focusable:false / deletable:false を指定している)。色は colorIndex ごとに inline style で
+   指定するので、ここでは hover/selected で色を上書きするような古い(v7以前の紐付け線時代の)
+   インタラクティブ演出は行わない。 */
+.react-flow__edge {
+  pointer-events: none;
+}
 .react-flow__edge .react-flow__edge-path {
-  stroke: #d2d2d7;
-  stroke-width: 2;
-  transition: stroke 0.15s ease, stroke-width 0.15s ease, filter 0.15s ease;
-  cursor: pointer;
-}
-.react-flow__edge:hover .react-flow__edge-path {
-  stroke: #5856d6;
-  stroke-width: 3.5;
-  filter: drop-shadow(0 0 6px rgba(88, 86, 214, 0.5));
-}
-.react-flow__edge.selected .react-flow__edge-path,
-.react-flow__edge:focus .react-flow__edge-path,
-.react-flow__edge:focus-visible .react-flow__edge-path {
-  stroke: #ff7a3d;
-  stroke-width: 4.5;
-  filter: drop-shadow(0 0 10px rgba(255, 122, 61, 0.7));
-}
-.react-flow__edge.selected .react-flow__arrowhead,
-.react-flow__edge:focus .react-flow__arrowhead {
-  fill: #ff7a3d;
-}
-.react-flow__edge .react-flow__edge-interaction {
-  cursor: pointer;
+  transition: none;
 }

@@ -1,14 +1,29 @@
-import { useEffect, type ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import TerminalPanel from "./TerminalPanel";
 import { useAppStore } from "../store/useAppStore";
+
+/** スライドアウトのアニメーション時間 (下の duration-300 と揃える)。 */
+const CLOSE_ANIMATION_MS = 300;
 
 export default function TerminalDrawer(): ReactElement {
   const open = useAppStore((state) => state.terminalDrawerOpen);
   const setOpen = useAppStore((state) => state.setTerminalDrawerOpen);
-  // インラインの mini terminal で各ノードが状態を表示するため、drawer は明示的に開いた時のみ。
-  // タスク実行で自動展開はしない (= マインドマップに溶け込ませる設計)
+  // 閉じている間も TerminalPanel を載せたままだと、画面外の xterm.js が
+  // 届いた出力を描画し続ける。アニメーションが終わってから外す。
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    if (open) {
+      setMounted(true);
+      return;
+    }
+
+    const timer = setTimeout(() => setMounted(false), CLOSE_ANIMATION_MS);
+    return () => clearTimeout(timer);
+  }, [open]);
+
+  useEffect(() => {
+    setOpen(true);
     const onKey = (event: KeyboardEvent): void => {
       if ((event.metaKey || event.ctrlKey) && (event.key === "j" || event.key === "J")) {
         event.preventDefault();
@@ -22,18 +37,13 @@ export default function TerminalDrawer(): ReactElement {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const toggle = (): void => {
-    setOpen(!open);
-  };
-
   return (
     <>
-      {/* 開閉ボタン (右下) — drawer が閉じている時のみ表示 */}
       {!open ? (
         <button
           type="button"
-          onClick={toggle}
-          className="fixed bottom-6 right-6 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-brand-line bg-brand-surface/95 text-brand-textDim shadow-2xl backdrop-blur-lg transition hover:bg-brand-surfaceHi hover:text-brand-text"
+          onClick={() => setOpen(true)}
+          className="fixed bottom-6 right-6 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-brand-line/80 bg-brand-surface/85 text-brand-textDim shadow-xl backdrop-blur-xl transition hover:bg-brand-surface hover:text-brand-text"
           aria-label="Show terminal"
           title="Show terminal (⌘J)"
         >
@@ -42,45 +52,36 @@ export default function TerminalDrawer(): ReactElement {
           </svg>
         </button>
       ) : null}
-      {/* 細い handle (中央下端) も残す */}
-      <button
-        type="button"
-        onClick={toggle}
-        className="fixed bottom-0 left-1/2 z-20 h-1.5 w-24 -translate-x-1/2 rounded-t-full bg-brand-line transition hover:bg-brand-textDim"
-        aria-label="Toggle terminal"
-      />
-      <div
-        className={`fixed inset-x-0 bottom-0 z-30 transition-transform duration-300 ${
-          open ? "translate-y-0" : "translate-y-full"
+
+      <aside
+        className={`fixed bottom-5 right-5 top-5 z-30 flex w-[min(32vw,520px)] min-w-[380px] flex-col overflow-hidden rounded-2xl border border-brand-line/80 bg-brand-surface/88 shadow-[0_24px_70px_rgba(29,29,31,0.16)] backdrop-blur-2xl transition-transform duration-300 ${
+          open ? "translate-x-0" : "pointer-events-none translate-x-[calc(100%+2rem)]"
         }`}
       >
-        <div className="flex h-[40vh] flex-col border-t border-brand-line bg-brand-surface backdrop-blur-lg">
-          {/* drawer ヘッダーバー — title + close */}
-          <div className="flex shrink-0 items-center justify-between border-b border-brand-line px-4 py-2">
-            <div className="flex items-center gap-2">
-              <svg viewBox="0 0 24 24" className="h-4 w-4 fill-brand-textDim">
-                <path d="M3 4h18a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm1 4v11h16V8H4Z" />
-              </svg>
-              <span className="text-[11px] uppercase tracking-widest text-brand-textDim">Terminal</span>
-              <span className="text-[10px] text-brand-textDim/70">⌘J / Esc</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-brand-textDim transition hover:bg-brand-surfaceHi hover:text-brand-text"
-              aria-label="Close terminal"
-              title="Close (Esc)"
-            >
-              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current">
-                <path d="M18.3 5.71 12 12.01l-6.3-6.3-1.41 1.41 6.3 6.3-6.3 6.3 1.41 1.41 6.3-6.3 6.3 6.3 1.41-1.41-6.3-6.3 6.3-6.3z" />
-              </svg>
-            </button>
-          </div>
-          <div className="min-h-0 flex-1">
-            <TerminalPanel />
-          </div>
+      <div className="flex shrink-0 items-center justify-between border-b border-brand-line/70 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-brand-textDim">
+            <path d="M3 4h18a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm1 4v11h16V8H4Z" />
+          </svg>
+          <span className="text-[11px] font-medium uppercase tracking-widest text-brand-textDim">Terminal</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] text-brand-textDim/70">Org Planner / agents</span>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-brand-textDim transition hover:bg-brand-surfaceHi/80 hover:text-brand-text"
+            aria-label="Hide terminal"
+            title="Hide terminal (Esc)"
+          >
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current">
+              <path d="M18.3 5.71 12 12.01l-6.3-6.3-1.41 1.41 6.3 6.3-6.3 6.3 1.41 1.41 6.3-6.3 6.3 6.3 1.41-1.41-6.3-6.3 6.3-6.3z" />
+            </svg>
+          </button>
         </div>
       </div>
+      <div className="min-h-0 flex-1">{mounted ? <TerminalPanel /> : null}</div>
+    </aside>
     </>
   );
 }

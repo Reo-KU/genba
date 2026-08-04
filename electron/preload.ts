@@ -5,6 +5,9 @@ import type {
   AgentRunRequest,
   AgentRunResult,
   AgentSummary,
+  BoardsSnapshot,
+  ProjectGroupsSnapshot,
+  NotesSnapshot,
   GraphEdge,
   GraphNode,
   InstallProgress,
@@ -36,6 +39,10 @@ contextBridge.exposeInMainWorld("mao", {
     loadSummary: (): Promise<string> => ipcRenderer.invoke("mao:project:loadSummary"),
     saveSummary: (text: string): Promise<void> => ipcRenderer.invoke("mao:project:saveSummary", text)
   },
+  planner: {
+    ask: (message: string): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke("mao:planner:ask", message)
+  },
   organization: {
     save: (request: OrganizationSaveRequest): Promise<OrganizationSaveResult> =>
       ipcRenderer.invoke("mao:organization:save", request)
@@ -49,20 +56,34 @@ contextBridge.exposeInMainWorld("mao", {
     create: (task: Task): Promise<Task> => ipcRenderer.invoke("mao:task:create", task),
     list: (): Promise<Task[]> => ipcRenderer.invoke("mao:task:list")
   },
+  notes: {
+    load: (): Promise<NotesSnapshot> => ipcRenderer.invoke("mao:notes:load"),
+    save: (snapshot: NotesSnapshot): Promise<void> => ipcRenderer.invoke("mao:notes:save", snapshot)
+  },
+  boards: {
+    load: (): Promise<BoardsSnapshot> => ipcRenderer.invoke("mao:boards:load"),
+    save: (snapshot: BoardsSnapshot): Promise<void> => ipcRenderer.invoke("mao:boards:save", snapshot)
+  },
+  groups: {
+    load: (): Promise<ProjectGroupsSnapshot> => ipcRenderer.invoke("mao:groups:load"),
+    save: (snapshot: ProjectGroupsSnapshot): Promise<void> => ipcRenderer.invoke("mao:groups:save", snapshot)
+  },
+  dialog: {
+    pickDirectory: (): Promise<string | null> => ipcRenderer.invoke("mao:dialog:pickDirectory")
+  },
   pty: {
     spawn: (agentId: string): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke("mao:pty:spawn", agentId),
     write: (agentId: string, data: string): Promise<void> => ipcRenderer.invoke("mao:pty:write", agentId, data),
-    kill: (agentId: string): Promise<void> => ipcRenderer.invoke("mao:pty:kill", agentId)
+    kill: (agentId: string): Promise<void> => ipcRenderer.invoke("mao:pty:kill", agentId),
+    resize: (agentId: string, cols: number, rows: number): Promise<void> =>
+      ipcRenderer.invoke("mao:pty:resize", agentId, cols, rows)
   },
   log: {
     append: (agentId: string, data: string): Promise<void> => ipcRenderer.invoke("mao:log:append", agentId, data)
   },
-  tty: {
-    getUrl: (): Promise<string | null> => ipcRenderer.invoke("mao:tty:getUrl")
-  },
   tmux: {
-    selectWindow: (agentId: string): Promise<boolean> => ipcRenderer.invoke("mao:tmux:selectWindow", agentId)
+    watch: (agentId: string): Promise<boolean> => ipcRenderer.invoke("mao:tmux:watch", agentId)
   },
   setup: {
     check: (): Promise<SetupCheckResult> => ipcRenderer.invoke("mao:setup:check"),

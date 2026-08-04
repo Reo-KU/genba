@@ -1,12 +1,12 @@
 import { useEffect, useState, type ReactElement } from "react";
-import AgentForm from "./components/AgentForm";
+import AttentionInbox from "./components/AttentionInbox";
 import GearMenu from "./components/GearMenu";
 import InspectorPopover from "./components/InspectorPopover";
 import MindMapCanvas from "./components/MindMapCanvas";
 import OrganizationBar from "./components/OrganizationBar";
 import PermissionDialog from "./components/PermissionDialog";
 import SetupCheckModal from "./components/SetupCheckModal";
-import TaskInput from "./components/TaskInput";
+import Sidebar from "./components/Sidebar";
 import TerminalDrawer from "./components/TerminalDrawer";
 import { useAppStore } from "./store/useAppStore";
 import type { SetupCheckResult } from "./types";
@@ -16,7 +16,6 @@ export default function App(): ReactElement {
   const selectedAgentId = useAppStore((state) => state.selectedAgentId);
   const locale = useAppStore((state) => state.locale);
   const setLocale = useAppStore((state) => state.setLocale);
-  const [agentFormOpen, setAgentFormOpen] = useState(false);
   const [setupModalOpen, setSetupModalOpen] = useState(false);
   const [setupResult, setSetupResult] = useState<SetupCheckResult | null>(null);
   const [setupDismissed, setSetupDismissed] = useState(false);
@@ -68,6 +67,7 @@ export default function App(): ReactElement {
     <div className="fixed inset-0 overflow-hidden bg-brand-bg text-brand-text">
       <MindMapCanvas />
       <OrganizationBar />
+      <Sidebar />
 
       <GearMenu
         onOpenSetup={openSetup}
@@ -75,18 +75,11 @@ export default function App(): ReactElement {
         onLocaleChange={setLocale}
       />
 
-      <button
-        type="button"
-        onClick={() => setAgentFormOpen(true)}
-        className="fixed bottom-6 left-6 z-30 flex h-14 w-14 items-center justify-center rounded-full border border-brand-line bg-brand-violet/20 text-2xl text-brand-text shadow-xl backdrop-blur transition hover:bg-brand-violet/40"
-        aria-label="Add agent"
-      >
-        +
-      </button>
-
+      {/* v11: 下部のタスク入力欄と「単独/合議」トグルは廃止。エージェントへの指示は
+          付箋を渡す / ターミナルに直接入力するのみ。合議機能は撤去済み (CONCEPT_v3.ja.md 参照)。 */}
       {selectedAgentId ? <InspectorPopover /> : null}
-      <TaskInput />
       <TerminalDrawer />
+      <AttentionInbox />
 
       {showSetupModal && setupResult ? (
         <SetupCheckModal
@@ -99,7 +92,6 @@ export default function App(): ReactElement {
           rechecking={rechecking}
         />
       ) : null}
-      {agentFormOpen ? <AgentForm onClose={() => setAgentFormOpen(false)} /> : null}
       <PermissionDialog />
     </div>
   );

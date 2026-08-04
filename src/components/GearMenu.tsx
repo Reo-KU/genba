@@ -39,7 +39,7 @@ export default function GearMenu({
   }, []);
 
   return (
-    <div ref={ref} className="fixed left-5 top-5 z-40 flex items-center gap-3">
+    <div ref={ref} className="fixed left-5 top-5 z-20 flex items-center gap-3">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}

@@ -15,6 +15,26 @@
 任意のカスタム CLI) を**マインドマップで役割分担**して動かすデスクトップアプリ。
 エージェントごとの permission policy、組み込み Web ターミナル、外部から
 attach 可能な tmux backend を備える。
+agent ごとに skills directory や Obsidian vault を設定し、作業時の追加リソース
+として使わせることもできます。
+
+Obsidian vault を設定した agent は、MAO の外部記憶として以下のノートを使います。
+先に用意する必要があるのはvaultフォルダだけです。vault内の `MAO/` フォルダは、
+組織保存時またはタスク開始時にMAOが自動作成します。
+
+```text
+Obsidian Vault/
+  MAO/
+    organization.md
+    agents/
+      <agent>.md
+    tasks/
+      <taskId>.md
+    decisions/
+```
+
+組織保存時に `organization.md` と agent note が更新され、タスク開始時に task
+note が作られ、各 agent の完了報告・dispatch・成果物パスが task note に追記されます。
 
 > English version: [README.md](README.md)
 
@@ -33,7 +53,6 @@ system バイナリが必要です。
 |---|---|---|
 | Node.js 20+ | `brew install node` または `nvm install --lts` | アプリ・レンダラのランタイム |
 | **tmux** | `brew install tmux` | interactive モードのエージェントは tmux session (`mao-orch`) に収容される |
-| **ttyd** | `brew install ttyd` | 下部 Terminal パネルで tmux session を Web ターミナルとして描画 |
 
 Linux: apt / dnf / pacman で同等パッケージを入れてください。Windows は未検証。
 
@@ -54,7 +73,7 @@ Linux: apt / dnf / pacman で同等パッケージを入れてください。Win
 MAO 起動前に確認:
 
 ```sh
-which tmux ttyd node
+which tmux node
 which claude codex gemini   # インストール済みのものだけ
 ```
 
@@ -133,6 +152,16 @@ permission ブロックを避けるためです。
 アウト・エラーのいずれでも削除され、`signals.log` は大きくなったら rotate
 されます。
 
+## 付箋キャンバス (v4)
+
+キャンバスは付箋ベースで使えます。動詞は2つだけ (合議機能は v11 で撤去済み)。
+
+1. **貼る** — 左上の「🗒 付箋」ボタンで付箋を追加し、やることを書く。
+2. **渡す** — 付箋をエージェントカードの上にドラッグして重ねると、その
+   エージェントが単独で実行し、結果の要約が付箋に書き込まれる。
+
+- 付箋は `notes.json` に自動保存され、再起動後も盤面が復元されます。
+
 ## UI ガイド
 
 - **Project Summary**: 左上の "Project Summary" ボタンから、プロジェクト全体の
@@ -153,14 +182,14 @@ permission ブロックを避けるためです。
 
 ## セットアップ確認
 
-MAO は起動時に tmux / ttyd などの必須ツールを確認します。不足がある場合は
+MAO は起動時に tmux などの必須ツールを確認します。不足がある場合は
 セットアップモーダルにインストールコマンドが表示されます。自動インストールに
 対応したツールは **Install** ボタンで進捗を見ながら実行でき、手動で入れる場合は
 **Copy** してターミナルで実行できます。
 
 ## Live Terminal
 
-interactive モードのエージェントは ttyd + tmux 経由の本物の Web ターミナル
+interactive モードのエージェントは tmux 上の本物の TUI
 として下部 Terminal パネルに表示されます。タブをクリックすると tmux の
 アクティブ window が切り替わります。exec モードのエージェントは軽量な
 xterm ログビューアのまま。
