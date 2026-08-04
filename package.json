@@ -22,17 +22,17 @@
     "repair:arch": "npm install --save-optional --force --cpu=arm64 --os=darwin @rollup/rollup-darwin-arm64@4.60.4 @esbuild/darwin-arm64@0.25.12 && cp -f node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper node_modules/node-pty/build/Release/spawn-helper && cp -f node_modules/node-pty/prebuilds/darwin-arm64/pty.node node_modules/node-pty/build/Release/pty.node && chmod +x node_modules/node-pty/build/Release/spawn-helper && echo 'arm64 binaries restored'"
   },
   "dependencies": {
-    "@xterm/addon-fit": "^0.11.0",
-    "@xterm/xterm": "^6.0.0",
     "fs-extra": "^11.3.5",
     "node-pty": "^1.1.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "reactflow": "^11.11.4",
-    "zod": "^4.4.3",
-    "zustand": "^5.0.13"
-  },
-  "devDependencies": {
+    "zustand": "^5.0.13",
     "@types/node": "^25.8.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -50,6 +50,7 @@
   "build": {
     "appId": "com.multiagent.orchestrator",
     "productName": "Multi-Agent Orchestrator",
+    "electronLanguages": ["en", "ja"],
     "directories": {
       "output": "dist"
     },

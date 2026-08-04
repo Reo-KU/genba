@@ -152,7 +152,8 @@ const defaultGroupsSnapshot = (): ProjectGroupsSnapshot => ({ groups: [] });
 
 // Finder 起動 (ダブルクリック) でも tmux / 各 CLI が見つかるよう、何かを spawn する前に
 // ログインシェルの PATH を process.env に反映する (dev のターミナル起動では実質 no-op)。
-ensureGuiPath();
+// 2回目以降の起動はキャッシュで即適用し、シェルの同期起動 (最大3秒) をスキップする。
+ensureGuiPath(join(app.getPath("userData"), "path-cache.json"));
 
 const ptyManager = new PtyManager();
 const tmuxManager = new TmuxManager();
