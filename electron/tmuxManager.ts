@@ -69,7 +69,12 @@ export class TmuxManager extends EventEmitter {
       }
     }
 
-    this.tmux(["pipe-pane", "-o", "-t", paneTarget, `cat >> "${logPath}"`]);
+    // `-o` を付けてはいけない。-o は「まだ pipe していないときだけ張る」= 実質トグルで、
+    // **既に pipe 中の pane に対しては逆に pipe を止めてしまう** (tmux 3.6a で実測)。
+    // ensureCapture は同じ pane に対して何度も呼ばれる (タブを開き直す / 前回起動の
+    // stale な pipe が残っている) ため、-o 付きだと 2 回に 1 回ストリームが死ぬ。
+    // -o 無しなら「既存の pipe を閉じてから新しい pipe を張る」で、常に張り直しになる。
+    this.tmux(["pipe-pane", "-t", paneTarget, `cat >> "${logPath}"`]);
 
     if (!this.tailProcs.has(agentId)) {
       const tail = cpSpawn("tail", ["-F", "-n", "0", logPath], { stdio: ["ignore", "pipe", "pipe"] });
