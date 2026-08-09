@@ -45,7 +45,7 @@ export const ja: Translations = {
     advancedSettings: "詳細設定",
     nameAutoHint: "空欄の場合、種類から自動で名前を付けます。",
     commandAutoHint: "空欄の場合、種類から自動で command を設定します (custom は入力必須)。",
-    workingDirectoryFromTerritory: (name: string) => `陣地「${name}」のフォルダ`,
+    workingDirectoryFromTerritory: (name: string) => `作業スペース「${name}」のフォルダ`,
     save: "Save",
     saving: "Saving...",
     cancel: "Cancel",
@@ -103,9 +103,9 @@ export const ja: Translations = {
     historyEmptyInput: "(empty input)",
     historyEmptyResponse: "(no response)",
     agent: "Agent",
-    project: "陣地",
+    project: "作業スペース",
     projectNone: "(なし)",
-    workingDirectoryFromProject: (name: string) => `陣地「${name}」のフォルダ`
+    workingDirectoryFromProject: (name: string) => `作業スペース「${name}」のフォルダ`
   },
   mindMap: {
     deleteNode: "Delete Node",
@@ -156,6 +156,7 @@ export const ja: Translations = {
     stop: "Stop",
     stopTooltip: "Kill this agent's running process (SIGHUP)",
     placeholder: "Terminal output will appear here.",
+    noteTab: "付箋",
     agentTitleSuffix: " terminal"
   },
   projectSummary: {
@@ -179,22 +180,22 @@ export const ja: Translations = {
     morePending: (n: number) => `+ ${n} more pending`
   },
   sidebar: {
-    projects: "陣地",
-    addProject: "陣地を追加",
-    renameProject: "陣地名を変更",
-    deleteProject: "陣地を削除",
+    projects: "作業スペース",
+    addProject: "作業スペースを追加",
+    renameProject: "作業スペース名を変更",
+    deleteProject: "作業スペースを削除",
     agents: "エージェント",
     noAgents: "エージェントがまだいません。",
-    noProjects: "陣地がまだありません。",
+    noProjects: "作業スペースがまだありません。",
     expand: "サイドバーを展開",
     collapse: "サイドバーを折りたたむ",
     deleteProjectConfirm: (name: string) => `"${name}" を削除しますか? 中のエージェントはそのままマップに残ります。`,
     unassigned: "未所属"
   },
   projectGroup: {
-    addButton: "陣地",
-    namePlaceholder: "陣地名",
-    defaultName: (n: number) => `陣地 ${n}`,
+    addButton: "作業スペース",
+    namePlaceholder: "作業スペース名",
+    defaultName: (n: number) => `作業スペース ${n}`,
     rename: "名前を変更",
     setFolder: "フォルダを選択",
     delete: "削除",
@@ -211,7 +212,7 @@ export const ja: Translations = {
   },
   toolbar: {
     arrange: "整理",
-    arrangeHint: "陣地・エージェントの重なり/はみ出しを解消してきれいに並べ直します。"
+    arrangeHint: "作業スペース・エージェントの重なり/はみ出しを解消してきれいに並べ直します。"
   },
   attentionInbox: {
     inbox: "要対応",

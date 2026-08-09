@@ -5,6 +5,7 @@ import "@xterm/xterm/css/xterm.css";
 import { getTranslations } from "../i18n";
 import { ORGANIZATION_PLANNER_AGENT_ID, useAppStore } from "../store/useAppStore";
 import { maskSecrets } from "../utils/maskSecrets";
+import { NOTE_STREAM_SUFFIX } from "../types";
 import type { Agent } from "../types";
 
 export default function TerminalPanel(): ReactElement {
@@ -44,13 +45,37 @@ export default function TerminalPanel(): ReactElement {
       withOutput.has(agent.id) ||
       agent.id === selectedAgentId;
 
-    return [plannerAgent, ...agents.filter(isLive)];
-  }, [agents, plannerStatus, agentIdsWithOutput, selectedAgentId]);
+    // 付箋の実行 (exec の別プロセス) は `${agentId}#note` に流れてくる。素のログなので
+    // mode: "exec" の擬似エージェントとして別タブにする (tmux スナップショットを使わない)。
+    const noteTabs: Agent[] = [...withOutput]
+      .filter((id) => id.endsWith(NOTE_STREAM_SUFFIX))
+      .map((id) => {
+        const baseId = id.slice(0, -NOTE_STREAM_SUFFIX.length);
+        const base = agents.find((agent) => agent.id === baseId);
+        return {
+          id,
+          name: `${base?.name ?? baseId} · ${t.terminal.noteTab}`,
+          type: base?.type ?? "custom",
+          mode: "exec",
+          permissionPolicy: base?.permissionPolicy ?? "safe-auto",
+          command: base?.command ?? "",
+          args: [],
+          workingDirectory: base?.workingDirectory ?? "",
+          role: "",
+          systemPrompt: "",
+          status: "stopped"
+        } satisfies Agent;
+      });
+
+    return [plannerAgent, ...agents.filter(isLive), ...noteTabs];
+  }, [agents, plannerStatus, agentIdsWithOutput, selectedAgentId, t.terminal.noteTab]);
   const activeAgent = useMemo(
     () => terminalAgents.find((agent) => agent.id === activeAgentId) ?? terminalAgents[0],
     [activeAgentId, terminalAgents]
   );
   const activeIsInteractive = (activeAgent?.mode ?? "exec") === "interactive";
+  // 付箋タブは終了済みプロセスのログビューなので、入力も Start/Stop も持たない。
+  const activeIsNote = activeAgent?.id.endsWith(NOTE_STREAM_SUFFIX) === true;
 
   useEffect(() => {
     if (!activeAgentId && terminalAgents[0]) {
@@ -180,6 +205,10 @@ export default function TerminalPanel(): ReactElement {
     });
 
     const inputDisposable = terminal.onData((data) => {
+      // 付箋タブは終了済み exec プロセスのログビュー。書き込み先の PTY が存在しない。
+      if (agentId.endsWith(NOTE_STREAM_SUFFIX)) {
+        return;
+      }
       void window.mao.pty.write(agentId, data);
     });
 
@@ -250,7 +279,7 @@ export default function TerminalPanel(): ReactElement {
               ) : null}
             </button>
           ))}
-          {activeAgent ? (
+          {activeAgent && !activeIsNote ? (
             <div className="ml-auto flex items-center gap-1">
               <button
                 type="button"

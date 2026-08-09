@@ -43,7 +43,7 @@ export const en = {
     advancedSettings: "Advanced settings",
     nameAutoHint: "Leave blank to auto-generate a name from the type.",
     commandAutoHint: "Leave blank to derive the command from the type (required for custom).",
-    workingDirectoryFromTerritory: (name: string) => `Folder from territory "${name}"`,
+    workingDirectoryFromTerritory: (name: string) => `Folder from workspace "${name}"`,
     save: "Save",
     saving: "Saving...",
     cancel: "Cancel",
@@ -101,9 +101,9 @@ export const en = {
     historyEmptyInput: "(empty input)",
     historyEmptyResponse: "(no response)",
     agent: "Agent",
-    project: "Territory",
+    project: "Workspace",
     projectNone: "(none)",
-    workingDirectoryFromProject: (name: string) => `Folder from territory "${name}"`
+    workingDirectoryFromProject: (name: string) => `Folder from workspace "${name}"`
   },
   mindMap: {
     deleteNode: "Delete Node",
@@ -154,6 +154,7 @@ export const en = {
     stop: "Stop",
     stopTooltip: "Kill this agent's running process (SIGHUP)",
     placeholder: "Terminal output will appear here.",
+    noteTab: "note",
     agentTitleSuffix: " terminal"
   },
   projectSummary: {
@@ -177,22 +178,22 @@ export const en = {
     morePending: (n: number) => `+ ${n} more pending`
   },
   sidebar: {
-    projects: "Territories",
-    addProject: "Add Territory",
-    renameProject: "Rename Territory",
-    deleteProject: "Delete Territory",
+    projects: "Workspaces",
+    addProject: "Add Workspace",
+    renameProject: "Rename Workspace",
+    deleteProject: "Delete Workspace",
     agents: "Agents",
     noAgents: "No agents yet.",
-    noProjects: "No territories yet.",
+    noProjects: "No workspaces yet.",
     expand: "Expand sidebar",
     collapse: "Collapse sidebar",
     deleteProjectConfirm: (name: string) => `Delete "${name}"? Agents inside stay on the map.`,
     unassigned: "Unassigned"
   },
   projectGroup: {
-    addButton: "Territory",
-    namePlaceholder: "Territory name",
-    defaultName: (n: number) => `Territory ${n}`,
+    addButton: "Workspace",
+    namePlaceholder: "Workspace name",
+    defaultName: (n: number) => `Workspace ${n}`,
     rename: "Rename",
     setFolder: "Choose Folder",
     delete: "Delete",
@@ -209,7 +210,7 @@ export const en = {
   },
   toolbar: {
     arrange: "Arrange",
-    arrangeHint: "Re-lay out every territory and agent so nothing overlaps or spills out."
+    arrangeHint: "Re-lay out every workspace and agent so nothing overlaps or spills out."
   },
   attentionInbox: {
     inbox: "Inbox",

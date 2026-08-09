@@ -233,6 +233,15 @@ export type StickyNote = {
 
 export type NotesSnapshot = { notes: StickyNote[] };
 
+/**
+ * 付箋の実行 (rawPrompt = exec の別プロセス) の出力を流す擬似ストリームID の接尾辞。
+ *
+ * 付箋の実行は interactive の tmux セッションとは**別プロセス**なので、同じ agentId の
+ * ログに混ぜるとターミナルパネル (tmux の現在画面を描く) からは見えないまま消える。
+ * `${agentId}${NOTE_STREAM_SUFFIX}` を別タブとして扱い、素のログとして描く。
+ */
+export const NOTE_STREAM_SUFFIX = "#note";
+
 // --- Boards (案件ボード) — CONCEPT_v5 Phase 1: ウィンドウマネージャ。
 // v6 の ProjectGroup (囲い) 導入により撤去済み。boards.json 後方互換・マイグレーション元としてだけ型を残す。
 

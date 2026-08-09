@@ -15,6 +15,7 @@ import type {
   PtyDataEvent,
   PtyStatusEvent
 } from "../src/types";
+import { NOTE_STREAM_SUFFIX } from "../src/types";
 import { stripAnsi } from "../src/utils/stripAnsi";
 import { getCommandName, normalizeAgentCommand } from "./commandLine";
 import { ensureMaoGitignore } from "./workspaceGuard";
@@ -586,12 +587,17 @@ export class AgentRunner extends EventEmitter {
         return;
       }
 
+      // 付箋の実行は tmux セッションとは別プロセスなので、同じ agentId のログに混ぜると
+      // ターミナルパネル (interactive タブは tmux の現在画面を描く) からは見えないまま
+      // 消えてしまう。専用の擬似ストリームに流し、パネル側で別タブとして描く。
+      const streamId = req.rawPrompt ? `${agent.id}${NOTE_STREAM_SUFFIX}` : agent.id;
+
       proc.onData((data) => {
         if (captureStrategy === "stdout") {
           stdoutBuffer += data;
         }
 
-        this.emit("data", { agentId: agent.id, data });
+        this.emit("data", { agentId: streamId, data });
       });
 
       proc.onExit(async ({ exitCode }) => {
