@@ -111,6 +111,14 @@ contextBridge.exposeInMainWorld("mao", {
       return () => ipcRenderer.off("mao:permission:request", listener);
     }
   },
+  onRecordState: (callback: (recording: boolean) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: boolean): void => {
+      callback(payload);
+    };
+
+    ipcRenderer.on("mao:record:state", listener);
+    return () => ipcRenderer.off("mao:record:state", listener);
+  },
   onPtyData: (callback: (event: PtyDataEvent) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: PtyDataEvent): void => {
       callback(payload);

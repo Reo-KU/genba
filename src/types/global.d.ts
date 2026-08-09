@@ -88,6 +88,7 @@ type MaoApi = {
     respond: (requestId: string, decision: PermissionDecision) => Promise<boolean>;
     onRequest: (callback: (event: PermissionRequestEvent) => void) => () => void;
   };
+  onRecordState?: (callback: (recording: boolean) => void) => () => void;
   onPtyData: (callback: (event: PtyDataEvent) => void) => () => void;
   onPtyStatus: (callback: (event: PtyStatusEvent) => void) => () => void;
 };

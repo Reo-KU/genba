@@ -39,6 +39,7 @@ import {
 import { maskSecrets } from "../src/utils/maskSecrets";
 import { buildActiveOrganization, buildOrganizationInstruction } from "../src/utils/organization";
 import { AgentRunner } from "./agentRunner";
+import { initDemoRecorder } from "./demoRecorder";
 import { ensureGuiPath } from "./env";
 import { Installer } from "./installer";
 import { MCPPermissionServer } from "./mcpPermissionServer";
@@ -1136,6 +1137,8 @@ const registerPtyBroadcasts = (): void => {
   });
 };
 
+let mainWindow: BrowserWindow | null = null;
+
 const createWindow = (): void => {
   const window = new BrowserWindow({
     width: 1200,
@@ -1145,6 +1148,13 @@ const createWindow = (): void => {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false
+    }
+  });
+
+  mainWindow = window;
+  window.on("closed", () => {
+    if (mainWindow === window) {
+      mainWindow = null;
     }
   });
 
@@ -1188,6 +1198,7 @@ app.whenReady().then(async () => {
   registerIpcHandlers();
   registerPtyBroadcasts();
   createWindow();
+  initDemoRecorder(() => mainWindow);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

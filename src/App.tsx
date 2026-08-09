@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactElement } from "react";
 import AttentionInbox from "./components/AttentionInbox";
+import DemoCursor from "./components/DemoCursor";
 import GearMenu from "./components/GearMenu";
 import InspectorPopover from "./components/InspectorPopover";
 import MindMapCanvas from "./components/MindMapCanvas";
@@ -93,6 +94,7 @@ export default function App(): ReactElement {
         />
       ) : null}
       <PermissionDialog />
+      <DemoCursor />
     </div>
   );
 }
