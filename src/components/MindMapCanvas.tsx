@@ -104,6 +104,12 @@ const CLICK_VS_DRAG_THRESHOLD_PX = 4;
  */
 const TAIL_CHUNK_WINDOW = 20;
 
+/** キャンバス左上のツールバーボタン。flex コンテナ内に並べるので位置指定は持たない。 */
+const TOOLBAR_BUTTON =
+  "pointer-events-auto flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-brand-line bg-brand-surface/90 px-4 py-2 text-xs font-semibold text-brand-text shadow-xl backdrop-blur transition hover:scale-105";
+const TOOLBAR_BUTTON_STICKY =
+  "pointer-events-auto flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-amber-300/40 bg-amber-200/90 px-4 py-2 text-xs font-semibold text-neutral-900 shadow-xl transition hover:scale-105";
+
 /** 指定した絶対座標 (エージェントカード中心) に最も近い陣地 (territory) の groupId を返す。
  * しきい値 (DRAG_ASSIGN_DISTANCE) を超える場合は null (= 所属を変えない)。 */
 function nearestTerritoryGroupId(
@@ -552,6 +558,9 @@ function CanvasInner(): ReactElement {
           }
         }}
       >
+        {/* ツールバー: 個別に left-* を指定するとラベル長 (言語差) で重なるため、
+            flex コンテナに並べて自動で間隔を取る */}
+        <div className="pointer-events-none fixed left-6 top-20 z-30 flex items-center gap-2">
         <button
           type="button"
           onClick={() => {
@@ -561,16 +570,12 @@ function CanvasInner(): ReactElement {
             });
             addNote({ x: center.x - 120 + Math.random() * 40, y: center.y - 80 + Math.random() * 40 });
           }}
-          className="pointer-events-auto fixed left-6 top-20 z-30 flex items-center gap-2 rounded-full border border-amber-300/40 bg-amber-200/90 px-4 py-2 text-xs font-semibold text-neutral-900 shadow-xl transition hover:scale-105"
+          className={TOOLBAR_BUTTON_STICKY}
         >
           <span aria-hidden="true">🗒</span>
           {t.sticky.add}
         </button>
-        <button
-          type="button"
-          onClick={() => void addTerritory()}
-          className="pointer-events-auto fixed left-40 top-20 z-30 flex items-center gap-2 rounded-full border border-brand-line bg-brand-surface/90 px-4 py-2 text-xs font-semibold text-brand-text shadow-xl backdrop-blur transition hover:scale-105"
-        >
+        <button type="button" onClick={() => void addTerritory()} className={TOOLBAR_BUTTON}>
           <span aria-hidden="true">+</span>
           {t.projectGroup.addButton}
         </button>
@@ -578,11 +583,12 @@ function CanvasInner(): ReactElement {
           type="button"
           onClick={() => arrangeAll()}
           title={t.toolbar.arrangeHint}
-          className="pointer-events-auto fixed left-[15.5rem] top-20 z-30 flex items-center gap-2 rounded-full border border-brand-line bg-brand-surface/90 px-4 py-2 text-xs font-semibold text-brand-text shadow-xl backdrop-blur transition hover:scale-105"
+          className={TOOLBAR_BUTTON}
         >
           <span aria-hidden="true">⇱⇲</span>
           {t.toolbar.arrange}
         </button>
+        </div>
       </ReactFlow>
     </section>
   );

@@ -1,5 +1,5 @@
 export const en = {
-  app: { title: "Multi-Agent CLI Orchestrator" },
+  app: { title: "Genba" },
   header: {
     projectSummary: "Project Summary",
     locale: "Language",
@@ -39,7 +39,7 @@ export const en = {
     obsidianVaultPath: "Obsidian Vault Path",
     obsidianVaultPathHint: "The Obsidian vault folder itself. Example: /Users/name/Documents/Obsidian/MAO-Memory. Leave blank to disable Obsidian memory.",
     obsidianNotesSubdir: "MAO Notes Folder in Vault",
-    obsidianNotesSubdirHint: "Folder inside the vault that MAO creates and updates. Usually keep this as MAO. Use . if you want organization / agents / tasks directly at the vault root. You do not need to create this folder first; MAO creates it on organization save or task start.",
+    obsidianNotesSubdirHint: "Folder inside the vault that Genba creates and updates. Usually keep this as MAO. Use . if you want organization / agents / tasks directly at the vault root. You do not need to create this folder first; Genba creates it on organization save or task start.",
     advancedSettings: "Advanced settings",
     nameAutoHint: "Leave blank to auto-generate a name from the type.",
     commandAutoHint: "Leave blank to derive the command from the type (required for custom).",
@@ -61,7 +61,7 @@ export const en = {
     modeInteractive: "Interactive (recommended)",
     permissionPolicy: "Permission Policy",
     edit: "Change (Edit)",
-    askExecClaudeHint: "Permission requests from claude are confirmed via the MAO approval dialog.",
+    askExecClaudeHint: "Permission requests from claude are confirmed via the Genba approval dialog.",
     askExecOtherHint: (type: string) =>
       `ask + exec is not supported for ${type}; the CLI silently denies operations. Switch to mode=interactive + bottom Terminal, or pick safe-auto/yolo.`,
     askInteractiveHint: "Interactive: approval prompts appear in the bottom Terminal. Click the tab and type y/n directly.",
@@ -232,9 +232,9 @@ export const en = {
     platformMac: "Open Terminal and run the missing install commands.",
     platformWin: "Open Command Prompt or PowerShell as Administrator if needed, then run the missing install commands.",
     platformLinux: "Open your terminal and install the missing tools via your package manager.",
-    installGuide: "Click Install to let MAO run the command for you, or Copy to run it manually in Terminal.",
-    maoWorkspaceHint: "When tasks run, MAO creates a temporary .mao/ folder inside each agent's workingDirectory for task files and signals. If it is a git repo, .mao/ is appended to .gitignore automatically.",
-    missingRequired: (n: number) => `${n} required tool(s) are missing. MAO may not start correctly until you install them.`,
+    installGuide: "Click Install to let Genba run the command for you, or Copy to run it manually in Terminal.",
+    maoWorkspaceHint: "When tasks run, Genba creates a temporary .mao/ folder inside each agent's workingDirectory for task files and signals. If it is a git repo, .mao/ is appended to .gitignore automatically.",
+    missingRequired: (n: number) => `${n} required tool(s) are missing. Genba may not start correctly until you install them.`,
     allRequiredOk: "All required tools are present.",
     requiredHeader: "Required",
     optionalHeader: "Optional (install only those you plan to use)",

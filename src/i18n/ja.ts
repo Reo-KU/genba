@@ -1,7 +1,7 @@
 import type { Translations } from "./en";
 
 export const ja: Translations = {
-  app: { title: "Multi-Agent CLI Orchestrator" },
+  app: { title: "Genba" },
   header: {
     projectSummary: "Project Summary",
     locale: "言語",
@@ -41,7 +41,7 @@ export const ja: Translations = {
     obsidianVaultPath: "Obsidian Vault Path",
     obsidianVaultPathHint: "Obsidianのvaultフォルダそのものです。例: /Users/name/Documents/Obsidian/MAO-Memory。空欄ならObsidian連携は無効。",
     obsidianNotesSubdir: "MAO Notes Folder in Vault",
-    obsidianNotesSubdirHint: "MAOがvault内で作成・更新するフォルダ名です。通常は MAO のままでOK。vault直下に organization / agents / tasks を置きたい場合は . を指定してください。このフォルダは先に作らなくても、組織保存やタスク開始時に自動作成されます。",
+    obsidianNotesSubdirHint: "Genbaがvault内で作成・更新するフォルダ名です。通常は MAO のままでOK。vault直下に organization / agents / tasks を置きたい場合は . を指定してください。このフォルダは先に作らなくても、組織保存やタスク開始時に自動作成されます。",
     advancedSettings: "詳細設定",
     nameAutoHint: "空欄の場合、種類から自動で名前を付けます。",
     commandAutoHint: "空欄の場合、種類から自動で command を設定します (custom は入力必須)。",
@@ -63,7 +63,7 @@ export const ja: Translations = {
     modeInteractive: "Interactive (推奨)",
     permissionPolicy: "Permission Policy",
     edit: "変更 (Edit)",
-    askExecClaudeHint: "claude の権限要求は MAO の承認ダイアログで都度確認します",
+    askExecClaudeHint: "claude の権限要求は Genba の承認ダイアログで都度確認します",
     askExecOtherHint: (type: string) =>
       `${type} の ask は exec モードでは承認 UI が無く、CLI 既定で多くが拒否されます。承認 UI が必要なら mode=interactive + 下部 Terminal、または policy=safe-auto / yolo を選択してください。`,
     askInteractiveHint: "interactive モード: 承認プロンプトは下部 Terminal に表示されます。タブをクリックして直接 y/n を入力してください。",
@@ -234,9 +234,9 @@ export const ja: Translations = {
     platformMac: "ターミナルを開いて、不足しているインストールコマンドを実行してください。",
     platformWin: "コマンドプロンプト (必要に応じて管理者) または PowerShell を開いて、不足しているインストールコマンドを実行してください。",
     platformLinux: "ターミナルを開いて、パッケージマネージャから不足分をインストールしてください。",
-    installGuide: "Install ボタンで MAO が裏側で実行します。手動でやりたい場合は Copy してターミナルへ。",
+    installGuide: "Install ボタンで Genba が裏側で実行します。手動でやりたい場合は Copy してターミナルへ。",
     maoWorkspaceHint: "※ タスク実行時に各 agent の workingDirectory 内に .mao/ が作られます (cleanup されます)。git 管理下なら .gitignore に自動追記。",
-    missingRequired: (n: number) => `${n} 個の必須ツールが見つかりません。MAO が正常に動作しない可能性があります。`,
+    missingRequired: (n: number) => `${n} 個の必須ツールが見つかりません。Genba が正常に動作しない可能性があります。`,
     allRequiredOk: "必須ツールはすべて揃っています。",
     requiredHeader: "必須",
     optionalHeader: "任意 (使う予定のものだけインストール)",
