@@ -1077,7 +1077,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     const locale = state.locale;
-    if (agent.status === "running" || agent.status === "starting") {
+    // 「作業中」の判定に agent.status を使ってはいけない。interactive エージェントの
+    // status は tmux セッションが生きている限りずっと "running" なので、Start 済みの
+    // エージェントには永久に付箋を渡せなくなる (2026-08-09 実害)。
+    // 付箋の実行は rawPrompt = 常に exec の別プロセスで走り、tmux セッションとは
+    // 衝突しない。排他が要るのは「同じエージェントに 2 枚同時」だけ
+    // (AgentRunner.activePtys が agentId をキーにしているため上書きされる)。
+    const alreadyBusy = state.notes.some(
+      (item) => item.id !== noteId && item.status === "running" && item.assignedAgentId === agentId
+    );
+    if (alreadyBusy) {
       set((current) => ({
         notes: current.notes.map((item) =>
           item.id === noteId
@@ -1085,7 +1094,9 @@ export const useAppStore = create<AppState>((set, get) => ({
                 ...item,
                 status: "error",
                 resultError:
-                  locale === "en" ? `${agent.name} is busy. Try again shortly.` : `${agent.name} は作業中です。少し待ってから渡してください。`,
+                  locale === "en"
+                    ? `${agent.name} is already working on another note.`
+                    : `${agent.name} は別の付箋を実行中です。終わってから渡してください。`,
                 updatedAt: new Date().toISOString()
               }
             : item

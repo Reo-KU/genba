@@ -632,7 +632,15 @@ export class AgentRunner extends EventEmitter {
           }
         }
 
-        this.emit("status", { agentId: agent.id, status: exitCode === 0 ? "stopped" : "error" });
+        // 付箋の実行 (rawPrompt) は interactive セッションと**別プロセス**なので、
+        // 終了しても tmux の pane が生きていれば agent はまだ稼働中。ここで無条件に
+        // "stopped" を出すと、生きている interactive エージェントが停止扱いになり
+        // 陣地の光が消えてしまう。pane の生死を見て復元する。
+        const paneAlive = req.rawPrompt === true && this.ptyBackend?.has(agent.id) === true;
+        this.emit("status", {
+          agentId: agent.id,
+          status: exitCode === 0 ? (paneAlive ? "running" : "stopped") : "error"
+        });
         resolve({ ok: true, lastMessage, exitCode, elapsedMs });
       });
     });
