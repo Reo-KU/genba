@@ -26,6 +26,8 @@ type TriggerPayload = {
   seconds?: number;
   fps?: number;
   out?: string;
+  /** 長辺の上限px。既定 1920。小さいほどキャプチャが速い = 実効fpsが上がる */
+  maxWidth?: number;
 };
 
 type RecorderStatus = {
@@ -79,7 +81,7 @@ const assemble = (ffmpeg: string, framesDir: string, fps: number, outFile: strin
         "-framerate",
         String(fps),
         "-i",
-        join(framesDir, "frame_%05d.png"),
+        join(framesDir, "frame_%05d.jpg"),
         "-c:v",
         "libx264",
         "-preset",
@@ -101,6 +103,7 @@ const assemble = (ffmpeg: string, framesDir: string, fps: number, outFile: strin
 const record = async (window: BrowserWindow, payload: TriggerPayload): Promise<void> => {
   const seconds = Math.max(2, Math.min(180, payload.seconds ?? 20));
   const fps = Math.max(4, Math.min(30, payload.fps ?? 15));
+  const maxWidth = Math.max(640, Math.min(3840, payload.maxWidth ?? 1920));
   const startedAt = new Date();
   const stamp = startedAt.toISOString().replace(/[:.]/g, "-").slice(0, 19);
   const outBase = payload.out?.trim() || join(DEFAULT_OUT_DIR, `mao_${stamp}`);
@@ -119,9 +122,14 @@ const record = async (window: BrowserWindow, payload: TriggerPayload): Promise<v
   try {
     while (Date.now() < deadline && !window.isDestroyed()) {
       const frameStart = Date.now();
-      const image = await window.webContents.capturePage();
-      const name = `frame_${String(frameIndex).padStart(5, "0")}.png`;
-      await fs.writeFile(join(framesDir, name), image.toPNG());
+      const captured = await window.webContents.capturePage();
+      // PNG エンコードは Retina 解像度のフルウィンドウだと 1 枚 100ms 超かかり、
+      // 実効 4fps まで落ちてクリック操作が紙芝居になる。長辺を縮めてから JPEG に
+      // 落とすと 1 枚あたり数十ms で済む (画質 92 なら UI のテキストも十分読める)。
+      const { width } = captured.getSize();
+      const image = width > maxWidth ? captured.resize({ width: maxWidth, quality: "good" }) : captured;
+      const name = `frame_${String(frameIndex).padStart(5, "0")}.jpg`;
+      await fs.writeFile(join(framesDir, name), image.toJPEG(92));
       frameIndex += 1;
 
       if (frameIndex % 30 === 0) {
