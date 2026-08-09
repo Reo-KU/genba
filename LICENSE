@@ -5,7 +5,7 @@ License text copyright (c) 2017 MariaDB Corporation Ab, All Rights Reserved.
 
 Licensor: Reo Komai
 
-Licensed Work: MAO, MAO OS, and Multi-Agent Orchestrator source code,
+Licensed Work: Genba (formerly MAO / Multi-Agent Orchestrator) source code,
 documentation, build scripts, and distributed binaries in this repository,
 excluding third-party components listed in THIRD_PARTY_NOTICES.md.
 
@@ -43,7 +43,7 @@ automation platform.
 For clarity, "competing automation platform" includes a hosted or managed
 service whose primary purpose is to provide multi-agent AI orchestration,
 AI-agent organization management, or cloud/team/enterprise agent automation
-that competes with current or future MAO Cloud, MAO Team, or MAO Enterprise
+that competes with current or future Genba Cloud, Genba Team, or Genba Enterprise
 offerings.
 
 Commercial licenses and additional permissions may be granted separately in

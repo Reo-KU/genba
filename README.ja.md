@@ -1,12 +1,12 @@
-# MAO — AIエージェントの仕事場
+# Genba — AIエージェントの仕事場
 
-> ライセンス: MAO は source-available project です。**個人利用・教育利用・
+> ライセンス: Genba は source-available project です。**個人利用・教育利用・
 > 研究利用・評価/検証利用、Fork、改造、Pull Request は無料**で許可されます。
-> **企業その他の組織での本番利用には商用ライセンスが必要**です。また、MAO
+> **企業その他の組織での本番利用には商用ライセンスが必要**です。また、Genba
 > または派生版を Hosted SaaS / Cloud / managed service / 競合する automation
 > platform として提供・販売することは、別途書面による商用ライセンスなしには
 > 許可されません。詳細は [LICENSE](LICENSE) を確認してください。
-> MAO / MAO OS / MAO Cloud は Reo Komai の商標・ブランド名です。
+> Genba / Genba OS / Genba Cloud は Reo Komai の商標・ブランド名です。
 > 公式リポジトリは
 > [github.com/Reo-KU/multi-agent-orchestrator](https://github.com/Reo-KU/multi-agent-orchestrator)
 > です。ライセンス・商用利用の問い合わせ先は
@@ -31,7 +31,7 @@ vault 内 `MAO/` フォルダ (自動作成) に task note を作り、完了報
 
 > English version: [README.md](README.md)
 
-> ⚠️ **MAO は agent の CLI を同梱していません。** 各エージェントに設定した
+> ⚠️ **Genba は agent の CLI を同梱していません。** 各エージェントに設定した
 > `command` をそのまま spawn するだけなので、使いたい CLI は別途インストール
 > してください（下記 Prerequisites）。
 
@@ -39,7 +39,7 @@ vault 内 `MAO/` フォルダ (自動作成) に task note を作り、完了報
 
 ### 1. 必須のシステムツール
 
-MAO 本体には Node.js のほか、interactive モードのバックエンドとして 2 つの
+Genba 本体には Node.js のほか、interactive モードのバックエンドとして 2 つの
 system バイナリが必要です。
 
 | ツール | macOS インストール | 用途 |
@@ -51,7 +51,7 @@ Linux: apt / dnf / pacman で同等パッケージを入れてください。Win
 
 ### 2. 各 agent の CLI (使うものだけ)
 
-実際に登録する agent の `command` だけ用意すれば OK。MAO の allowlist は
+実際に登録する agent の `command` だけ用意すれば OK。Genba の allowlist は
 `claude` / `codex` / `grok` / `gemini` と、custom 用に `sh` / `bash` / `zsh` /
 `python` / `python3` / `node` を許可しています。
 
@@ -63,7 +63,7 @@ Linux: apt / dnf / pacman で同等パッケージを入れてください。Win
 | `grok` | xAI の `grok-cli` (プロジェクト固有) | プロジェクト依存 |
 | `custom` | allowlist 内の任意コマンド | プロジェクト依存 |
 
-MAO 起動前に確認:
+Genba 起動前に確認:
 
 ```sh
 which tmux node
@@ -76,9 +76,9 @@ allowlist 外のコマンドや PATH 上に無いものを指定すると、agen
 
 ### 3. (任意) CLI ごとの認証
 
-各 agent CLI は自身でクレデンシャル管理します。MAO はログイン代行を
+各 agent CLI は自身でクレデンシャル管理します。Genba はログイン代行を
 しません。spawn された CLI が working directory で既に認証済み、という
-前提です。MAO に登録する前に、各 CLI を 1 度手動起動してログインしておいて
+前提です。Genba に登録する前に、各 CLI を 1 度手動起動してログインしておいて
 ください。
 
 ## セットアップ
@@ -132,7 +132,7 @@ JSON は手動編集も可能 (zod で検証され、不正なら空配列で初
 
 ## ワークスペース内に作られるファイル
 
-MAO は agent の `workingDirectory` 内に `.mao/` ディレクトリを作成し、以下を
+Genba は agent の `workingDirectory` 内に `.mao/` ディレクトリを作成し、以下を
 管理します:
 
 - `.mao/<taskId>.md` — タスク仕様 (graph 情報 / プロジェクト情報 / 受信指示 / 応答ルール)
@@ -142,7 +142,7 @@ agent には PTY 経由で短い自然文だけが送られ、複雑な文脈は
 読まれます。これは claude TUI の prompt injection 検知や、CLI の sandbox
 permission ブロックを避けるためです。
 
-`.mao/` は MAO が起動時に各 workspace の `.gitignore` に自動追記します
+`.mao/` は Genba が起動時に各 workspace の `.gitignore` に自動追記します
 (workspace が git 管理下の場合のみ)。タスク仕様ファイルは成功・中断・タイム
 アウト・エラーのいずれでも削除され、`signals.log` は大きくなったら rotate
 されます。
@@ -197,7 +197,7 @@ permission ブロックを避けるためです。
 
 ## セットアップ確認
 
-MAO は起動時に tmux などの必須ツールを確認します。不足がある場合は
+Genba は起動時に tmux などの必須ツールを確認します。不足がある場合は
 セットアップモーダルにインストールコマンドが表示されます。自動インストールに
 対応したツールは **Install** ボタンで進捗を見ながら実行でき、手動で入れる場合は
 **Copy** してターミナルで実行できます。
@@ -215,12 +215,12 @@ xterm ログビューアのまま。
 tmux attach -t mao-orch
 ```
 
-`Ctrl+B → n` で window 切替、`Ctrl+B → d` でデタッチ。MAO とリアルタイムに
+`Ctrl+B → n` で window 切替、`Ctrl+B → d` でデタッチ。Genba とリアルタイムに
 同期します。
 
 ## Permission Policy
 
-各 agent には `permissionPolicy` があり、MAO が CLI 別のフラグに翻訳して
+各 agent には `permissionPolicy` があり、Genba が CLI 別のフラグに翻訳して
 spawn 時に渡します:
 
 | Policy | codex | claude | gemini |
@@ -235,13 +235,13 @@ spawn 時に渡します:
 
 ### `ask` (都度承認) と CLI 別の挙動
 
-`ask` は MAO が個別の tool call に介入できる唯一のポリシー。CLI が公開している
+`ask` は Genba が個別の tool call に介入できる唯一のポリシー。CLI が公開している
 hook 次第で挙動が変わります:
 
 | CLI | `ask` + `exec` | `ask` + `interactive` |
 |---|---|---|
-| **claude** | ✅ MAO モーダル。Write / Bash 等の tool call ごとに "⚠️ Permission Request" ダイアログが出る (`--permission-prompt-tool` 経由) | ✅ 同じモーダル。または CLI の TUI プロンプトが下部 Terminal に表示 |
-| **codex** | ⚠️ codex exec は `approval: never` 固定で承認 hook 無し。MAO は危険操作を黙って拒否する。Inspector に黄注意あり | ✅ codex の TUI プロンプトが下部 Terminal に出るので `y` / `n` / `1` / `2` でタイプ |
+| **claude** | ✅ Genba モーダル。Write / Bash 等の tool call ごとに "⚠️ Permission Request" ダイアログが出る (`--permission-prompt-tool` 経由) | ✅ 同じモーダル。または CLI の TUI プロンプトが下部 Terminal に表示 |
+| **codex** | ⚠️ codex exec は `approval: never` 固定で承認 hook 無し。Genba は危険操作を黙って拒否する。Inspector に黄注意あり | ✅ codex の TUI プロンプトが下部 Terminal に出るので `y` / `n` / `1` / `2` でタイプ |
 | **gemini** | ⚠️ 同じく hook 無し。Inspector が警告 | ✅ Gemini の TUI プロンプトが下部 Terminal に出る |
 | **grok / custom** | ⚠️ CLI 依存 | ✅ CLI が TUI でプロンプトを出すなら下部 Terminal で対応 |
 

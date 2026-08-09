@@ -1,26 +1,26 @@
-# MAO
+# Genba
 
 Mission control for your AI agents.
 
-MAO is a desktop app that lets you see and drive multiple running AI CLI
+Genba is a desktop app that lets you see and drive multiple running AI CLI
 agents — Claude, Codex, Gemini, Grok, and custom commands — on a single board.
 Your folder hierarchy is drawn as a tree, folders light up while agents work
 inside them, sticky notes hand tasks to agents with a drag, and everything
 that needs a human decision lands in one inbox.
 
-MAO is a source-available project. **Personal use, education, research,
+Genba is a source-available project. **Personal use, education, research,
 evaluation, forks, modifications, and pull requests are free.** Production use
 within a company or other organization requires a commercial license.
 
-Commercial hosted competing services are not allowed. You may not offer MAO, a
-modified MAO, or a substantially similar derivative as a hosted SaaS, cloud
+Commercial hosted competing services are not allowed. You may not offer Genba, a
+modified Genba, or a substantially similar derivative as a hosted SaaS, cloud
 service, managed service, hosted agent-orchestration service, or competing
 automation platform without a separate written commercial license.
 
 License details are in [LICENSE](LICENSE). Third-party dependency notices are
 in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-MAO, MAO OS, and MAO Cloud are trademarks and brand names of Reo Komai. See
+Genba, Genba OS, and Genba Cloud are trademarks and brand names of Reo Komai. See
 [TRADEMARKS.md](TRADEMARKS.md).
 
 Official repository:
@@ -32,7 +32,7 @@ Issues:
 Licensing and commercial inquiries:
 [imopotato8@gmail.com](mailto:imopotato8@gmail.com)
 
-> MAO does not bundle Claude, Codex, Gemini, Grok, GPT, or other agent CLIs.
+> Genba does not bundle Claude, Codex, Gemini, Grok, GPT, or other agent CLIs.
 > It starts the commands you configure, and each CLI remains governed by its
 > own vendor terms.
 
@@ -52,7 +52,7 @@ Licensing and commercial inquiries:
 - Per-agent skills directory and enabled skill hints
 - Per-agent Obsidian vault access guidance
 - Persistent task artifacts under `mao_artifacts/`
-- Temporary MAO control files under `.mao/`
+- Temporary Genba control files under `.mao/`
 
 ## Requirements
 
@@ -96,13 +96,13 @@ npm run dist
 
 ## Workspace Files
 
-MAO stores app-level workspace state under:
+Genba stores app-level workspace state under:
 
 ```text
 ~/.multi-agent-orchestrator/workspaces/default/
 ```
 
-Inside each agent working directory, MAO may create:
+Inside each agent working directory, Genba may create:
 
 | Path | Purpose |
 |---|---|
@@ -115,7 +115,7 @@ organization saves and task cleanup.
 
 ## Obsidian Memory
 
-Each agent can optionally be given an Obsidian vault path. When configured, MAO
+Each agent can optionally be given an Obsidian vault path. When configured, Genba
 uses the vault as durable organizational memory:
 
 You only need to create or choose the vault folder itself. The `MAO/` memory
@@ -141,13 +141,12 @@ needed to recover after restarts or context loss.
 
 ## License Summary
 
-MAO is licensed under the Business Source License 1.1 with an Additional Use
-Grant for personal, educational, research, development, self-hosted, and
-internal business use.
+Genba is licensed under the Business Source License 1.1 with an Additional Use
+Grant for personal, educational, research, and evaluation use. **Production use
+within a company or other organization requires a commercial license.**
 
-The current proposed Change Date is `2030-06-01`. On the Change Date, the
-covered version changes to the Apache License 2.0 unless a later release states
-different parameters.
+Each released version converts to the Apache License 2.0 four years after that
+version is first publicly distributed.
 
 This summary is not a substitute for [LICENSE](LICENSE).
 

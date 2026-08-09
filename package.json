@@ -1,7 +1,7 @@
 {
-  "name": "multi-agent-orchestrator",
+  "name": "genba",
   "version": "0.1.0",
-  "description": "Multi-Agent CLI Orchestrator MVP",
+  "description": "Genba — mission control for your AI agents",
   "author": "komaireo",
   "license": "BUSL-1.1",
   "repository": {
@@ -48,8 +48,8 @@
     "vite": "^7.3.3"
   },
   "build": {
-    "appId": "com.multiagent.orchestrator",
-    "productName": "Multi-Agent Orchestrator",
+    "appId": "app.genba.desktop",
+    "productName": "Genba",
     "electronLanguages": ["en", "ja"],
     "directories": {
       "output": "dist"
