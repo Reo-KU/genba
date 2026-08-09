@@ -19,3 +19,4 @@ src 2/
 
 # 内部戦略ドキュメント (価格・GTM・撮影台本) — 公開リポジトリに載せない
 docs/internal/
+build/genba.iconset/

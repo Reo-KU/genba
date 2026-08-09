@@ -2,6 +2,8 @@
 
 See where your AI agents are actually working.
 
+![Genba demo — folders glow while agents work; click in to talk to the real session](docs/assets/demo.gif)
+
 Genba is a desktop management plane for the AI CLI agents you already run —
 Claude Code, Codex, Gemini CLI, Grok, and custom commands — on one live board.
 Your folder hierarchy is drawn as a tree and folders glow while agents work

@@ -13,6 +13,8 @@
 > です。ライセンス・商用利用の問い合わせ先は
 > [imopotato8@gmail.com](mailto:imopotato8@gmail.com) です。
 
+![Genba デモ — エージェントが働くフォルダが光り、クリックで本物のセッションに話せる](docs/assets/demo.gif)
+
 **いま動いている本物の AI CLI セッション (Claude Code / OpenAI Codex /
 Gemini CLI / Grok / 任意のカスタム CLI) を、1枚のボードで見て、動かす
 デスクトップアプリ。**
