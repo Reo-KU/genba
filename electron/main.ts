@@ -41,6 +41,7 @@ import { buildActiveOrganization, buildOrganizationInstruction } from "../src/ut
 import { AgentRunner } from "./agentRunner";
 import { initDemoRecorder } from "./demoRecorder";
 import { ensureGuiPath } from "./env";
+import { buildSeedIfEmpty } from "./firstRun";
 import { Installer } from "./installer";
 import { MCPPermissionServer } from "./mcpPermissionServer";
 import { createShellTestAgent, PtyManager } from "./ptyManager";
@@ -232,6 +233,31 @@ const initializeStorage = async (): Promise<void> => {
   await readValidatedJson(TASKS_JSON_PATH, tasksSchema, []);
   await readValidatedJson(BOARDS_JSON_PATH, boardsSnapshotSchema, defaultBoardsSnapshot());
   await readValidatedJson(GROUPS_JSON_PATH, groupsSnapshotSchema, defaultGroupsSnapshot());
+
+  await seedFirstRunWorkspace();
+};
+
+/**
+ * 初回起動 (= agents も陣地も空) のときだけ、インストール済み CLI と最近さわった
+ * プロジェクトフォルダから初期盤面を作る。既存ユーザーのデータには一切触らない。
+ * エージェントは stopped で置くだけで、勝手に起動はしない。
+ */
+const seedFirstRunWorkspace = async (): Promise<void> => {
+  try {
+    const [agents, groups] = await Promise.all([readAgents(), readGroups()]);
+    const seed = buildSeedIfEmpty(agents.length, groups.groups.length);
+    if (!seed) {
+      return;
+    }
+
+    const graph = await readGraph();
+    await writeJsonUnlocked(AGENTS_JSON_PATH, seed.agents);
+    await writeJsonUnlocked(GROUPS_JSON_PATH, { groups: seed.groups });
+    await writeJsonUnlocked(GRAPH_JSON_PATH, { nodes: seed.nodes, edges: graph.edges });
+  } catch (error) {
+    // 初期化に失敗しても空の盤面で起動できればよい
+    console.warn("[MAO first-run] seeding skipped:", error);
+  }
 };
 
 const readAgents = (): Promise<Agent[]> => readValidatedJson(AGENTS_JSON_PATH, agentsSchema, []);
