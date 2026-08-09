@@ -30,7 +30,8 @@ npm run build
 
 echo "== 3/5 dmg 生成 + 署名 + 公証 (数分かかります)"
 # 出力は iCloud 外へ (Desktop 配下だと拡張属性で codesign が失敗する)
-export CSC_NAME="$IDENTITY"
+# CSC_NAME は証明書タイプの接頭辞を含めてはいけない (electron-builder が自動選択する)
+export CSC_NAME="${IDENTITY#Developer ID Application: }"
 npx electron-builder --mac dmg --config.directories.output=/tmp/genba-release
 
 DMG=$(ls -t /tmp/genba-release/*.dmg | head -1)
