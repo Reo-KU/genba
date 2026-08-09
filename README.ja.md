@@ -1,27 +1,34 @@
-# Genba — AIエージェントの仕事場
+# Genba (現場) — AIエージェントの現場が、一枚で見える
 
-> ライセンス: Genba は source-available project です。**個人利用・教育利用・
-> 研究利用・評価/検証利用、Fork、改造、Pull Request は無料**で許可されます。
-> **企業その他の組織での本番利用には商用ライセンスが必要**です。また、Genba
-> または派生版を Hosted SaaS / Cloud / managed service / 競合する automation
-> platform として提供・販売することは、別途書面による商用ライセンスなしには
-> 許可されません。詳細は [LICENSE](LICENSE) を確認してください。
+> ライセンス: Genba は source-available project です。**個人としての利用は、
+> 職場・業務・商用プロジェクトでの利用を含めて恒久無料・機能制限なし**です。
+> 商用ライセンスが必要になるのは、**組織が標準ツールとして導入・配布する場合**
+> のみ (組織内での評価利用は無料)。また、Genba または派生版を Hosted SaaS /
+> Cloud / managed service / 競合する automation platform として提供・販売する
+> ことは、別途書面による商用ライセンスなしには許可されません。
+> 詳細は [LICENSE](LICENSE) を確認してください。
 > Genba / Genba OS / Genba Cloud は Reo Komai の商標・ブランド名です。
 > 公式リポジトリは
-> [github.com/Reo-KU/multi-agent-orchestrator](https://github.com/Reo-KU/multi-agent-orchestrator)
+> [github.com/Reo-KU/genba](https://github.com/Reo-KU/genba)
 > です。ライセンス・商用利用の問い合わせ先は
 > [imopotato8@gmail.com](mailto:imopotato8@gmail.com) です。
 
-**複数の稼働中 CLI エージェント (Claude Code / OpenAI Codex / Gemini CLI /
-Grok / 任意のカスタム CLI) を、1枚のボードで見て、動かすデスクトップアプリ。**
+**いま動いている本物の AI CLI セッション (Claude Code / OpenAI Codex /
+Gemini CLI / Grok / 任意のカスタム CLI) を、1枚のボードで見て、動かす
+デスクトップアプリ。**
 
-- **フォルダ樹形図 (陣地ツリー)**: どのフォルダで何が動いているかが色で分かる。
-  稼働中のフォルダは枝色で光り、クリックで展開すると中のエージェントが並ぶ
-- **付箋**: やることを付箋に書いて、エージェントに重ねるだけで実行される
+- **本物のセッション、ラッパーなし**: エージェントはアプリより長生きする
+  tmux セッションで動く。Genba を終了してもエージェントは走り続け、
+  再起動すると盤面が繋ぎ直される。普通のターミナルから `tmux attach` で
+  同じセッションを覗くこともできる
+- **フォルダ樹形図 (作業スペースツリー)**: どのフォルダで何が動いているかが
+  色で分かる。稼働中のフォルダは枝色で光り、クリックで展開すると中の
+  エージェントが並び、カードをクリックするとそのセッションに直接話せる
 - **Attention Inbox**: 承認待ち・エラーなど「人間の判断が要るもの」だけが
   1か所に集まる
-- エージェントごとの permission policy、xterm ターミナル、外部から
-  attach 可能な tmux backend
+- **ゼロ設定の初回起動**: インストール済み CLI と最近のプロジェクトフォルダを
+  自動検出し、初期状態の盤面を自動生成
+- **付箋**: やることを付箋に書いて、エージェントに重ねるだけで単発実行される
 
 agent ごとに skills directory や Obsidian vault を設定し、作業時の追加リソース
 として使わせることもできます。vault を設定した agent は、タスク開始時に
@@ -84,8 +91,8 @@ allowlist 外のコマンドや PATH 上に無いものを指定すると、agen
 ## セットアップ
 
 ```sh
-git clone https://github.com/Reo-KU/multi-agent-orchestrator.git
-cd multi-agent-orchestrator
+git clone https://github.com/Reo-KU/genba.git
+cd genba
 npm install
 ```
 

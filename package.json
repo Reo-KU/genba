@@ -6,12 +6,12 @@
   "license": "BUSL-1.1",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Reo-KU/multi-agent-orchestrator.git"
+    "url": "git+https://github.com/Reo-KU/genba.git"
   },
   "bugs": {
-    "url": "https://github.com/Reo-KU/multi-agent-orchestrator/issues"
+    "url": "https://github.com/Reo-KU/genba/issues"
   },
-  "homepage": "https://github.com/Reo-KU/multi-agent-orchestrator#readme",
+  "homepage": "https://github.com/Reo-KU/genba#readme",
   "main": "out/main/main.js",
   "type": "module",
   "scripts": {

@@ -1,16 +1,18 @@
-# Genba
+# Genba (現場)
 
-Mission control for your AI agents.
+See where your AI agents are actually working.
 
-Genba is a desktop app that lets you see and drive multiple running AI CLI
-agents — Claude, Codex, Gemini, Grok, and custom commands — on a single board.
-Your folder hierarchy is drawn as a tree, folders light up while agents work
-inside them, sticky notes hand tasks to agents with a drag, and everything
-that needs a human decision lands in one inbox.
+Genba is a desktop management plane for the AI CLI agents you already run —
+Claude Code, Codex, Gemini CLI, Grok, and custom commands — on one live board.
+Your folder hierarchy is drawn as a tree and folders glow while agents work
+inside them. Click in and you are talking to the **real CLI session, not a
+wrapper**: agents live in a tmux session that outlives the app, so you can
+quit Genba, keep the agents working, relaunch, and the board reattaches.
+Approvals and errors land in one inbox.
 
-Genba is a source-available project. **Personal use, education, research,
-evaluation, forks, modifications, and pull requests are free.** Production use
-within a company or other organization requires a commercial license.
+Genba is a source-available project. **Individual use is free forever —
+including at work and on commercial projects.** A commercial license is
+required only when an organization adopts Genba as a standard tool.
 
 Commercial hosted competing services are not allowed. You may not offer Genba, a
 modified Genba, or a substantially similar derivative as a hosted SaaS, cloud
@@ -24,10 +26,10 @@ Genba, Genba OS, and Genba Cloud are trademarks and brand names of Reo Komai. Se
 [TRADEMARKS.md](TRADEMARKS.md).
 
 Official repository:
-[github.com/Reo-KU/multi-agent-orchestrator](https://github.com/Reo-KU/multi-agent-orchestrator)
+[github.com/Reo-KU/genba](https://github.com/Reo-KU/genba)
 
 Issues:
-[GitHub Issues](https://github.com/Reo-KU/multi-agent-orchestrator/issues)
+[GitHub Issues](https://github.com/Reo-KU/genba/issues)
 
 Licensing and commercial inquiries:
 [imopotato8@gmail.com](mailto:imopotato8@gmail.com)
@@ -38,14 +40,19 @@ Licensing and commercial inquiries:
 
 ## Features
 
-- **Territory tree**: your folder hierarchy drawn as a left-to-right tree —
-  folders with running agents light up in their branch color; click a
-  territory to expand the agent cards inside
-- **Sticky notes**: stick a note, then drop it on an agent to hand it
-  off for a one-shot run — the result is written back onto the note (persisted
-  in `notes.json`)
+- **Real sessions, not wrappers**: agents run in a tmux session that outlives
+  the app. Quit Genba and they keep working; relaunch and the board
+  reattaches. You can even `tmux attach` from any terminal to watch the same
+  session
+- **Workspace tree**: your folder hierarchy drawn as a left-to-right tree —
+  folders with running agents glow in their branch color; click a workspace
+  to expand the agent cards inside, click a card to talk to that session
 - **Attention Inbox**: approvals, errors, and anything else needing a human
-  decision, collected in one place across all territories
+  decision, collected in one place across all workspaces
+- **Zero-setup first run**: Genba detects your installed CLIs and recent
+  project folders and lays out an initial board automatically
+- **Sticky notes**: write a task, drop it on an agent for a one-shot run —
+  the result is written back onto the note
 - Interactive agent terminals backed by tmux (rendered with xterm.js)
 - Support for Claude, Codex, Gemini, Grok, and custom allowlisted commands
 - Per-agent execution modes and permission policy controls
@@ -141,9 +148,13 @@ needed to recover after restarts or context loss.
 
 ## License Summary
 
-Genba is licensed under the Business Source License 1.1 with an Additional Use
-Grant for personal, educational, research, and evaluation use. **Production use
-within a company or other organization requires a commercial license.**
+Genba is licensed under the Business Source License 1.1 — not open source,
+but source-available: you can audit every line that touches your sessions.
+
+**Individual use is free forever — including at work and on commercial
+projects.** A commercial license is required only when an organization adopts
+Genba (standardizes on it, procures it for members, or deploys it centrally).
+Evaluation inside an organization is free.
 
 Each released version converts to the Apache License 2.0 four years after that
 version is first publicly distributed.

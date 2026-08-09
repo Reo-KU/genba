@@ -20,19 +20,21 @@ Additional Use Grant:
 
 You may make production use of the Licensed Work for:
 
-- personal use by an individual, on machines the individual owns or controls,
-  where the use is not on behalf of, or primarily for the benefit of, a
-  company or other organization;
-- educational, learning, and non-commercial research use, including at
-  schools, universities, and research labs;
+- individual use — use by a person who personally chooses and installs the
+  Licensed Work on machines they work on, **including use at work and use on
+  commercial projects**;
+- educational, learning, and research use, including at schools, universities,
+  and research labs;
 - development, testing, evaluation, and proof-of-concept use, including
-  time-limited evaluation within an organization; and
+  evaluation within an organization; and
 - creating forks, modifications, integrations, and pull requests.
 
-Any other production use requires a commercial license from the Licensor.
-For clarity, this includes production use within, on behalf of, or primarily
-for the benefit of a company, nonprofit, government body, or other
-organization (regardless of whether the software is self-hosted).
+A commercial license from the Licensor is required when an organization adopts
+the Licensed Work: for example, when it standardizes on the Licensed Work as
+an organizational tool, mandates or procures it for its members, deploys or
+configures it centrally, or redistributes it internally as part of its
+tooling. Individual use as described above does not require a commercial
+license, even in a workplace.
 
 The Additional Use Grant does not permit you to offer, sell, resell, provide,
 host, or operate the Licensed Work, a modified version of the Licensed Work, or
