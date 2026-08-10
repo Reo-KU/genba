@@ -37,11 +37,19 @@ npx electron-builder --mac dmg --config.directories.output=/tmp/genba-release
 DMG=$(ls -t /tmp/genba-release/*.dmg | head -1)
 APP="/tmp/genba-release/mac-arm64/Genba.app"
 
-echo "== 4/5 検証"
+# electron-builder は .app だけを公証して dmg を作るため、**dmg 容器自体にはチケットが無い**。
+# ダウンロードした dmg をオフラインで開くと警告が出るので、dmg も公証して staple する。
+# 中身の .app は公証済みなので、この送信は通常数分で通る。
+echo "== 4/5 dmg 自体の公証 + staple"
+xcrun notarytool submit "$DMG" \
+  --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+xcrun stapler staple "$DMG"
+
+echo "== 5/5 検証"
 spctl -a -vv "$APP" 2>&1 | head -2
 xcrun stapler validate "$DMG"
 
-echo "== 5/5 完了"
+echo "== 完了"
 ls -lh "$DMG"
 echo "このdmgを GitHub Releases にアップロードしてください:"
 echo "  gh release create v\$(node -p \"require('./package.json').version\") \"$DMG\" --title \"Genba v...\" --notes \"...\""
