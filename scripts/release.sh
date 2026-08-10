@@ -40,7 +40,11 @@ APP="/tmp/genba-release/mac-arm64/Genba.app"
 # electron-builder は .app だけを公証して dmg を作るため、**dmg 容器自体にはチケットが無い**。
 # ダウンロードした dmg をオフラインで開くと警告が出るので、dmg も公証して staple する。
 # 中身の .app は公証済みなので、この送信は通常数分で通る。
-echo "== 4/5 dmg 自体の公証 + staple"
+# dmg 容器にもコード署名を付ける。署名が無いと spctl が
+# 'no usable signature' で reject する (公証チケットだけでは不十分)。
+# 順序が重要: 署名 → 公証 → staple。署名は staple を無効化するため後から署名してはいけない。
+echo "== 4/5 dmg の署名 + 公証 + staple"
+codesign --force --sign "$IDENTITY" --timestamp "$DMG"
 xcrun notarytool submit "$DMG" \
   --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
 xcrun stapler staple "$DMG"
