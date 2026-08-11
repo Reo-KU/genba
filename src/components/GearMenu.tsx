@@ -50,7 +50,7 @@ export default function GearMenu({
           <path d="M19.43 12.98c.04-.32.07-.66.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.46 7.46 0 0 0-1.7-.98l-.38-2.65A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.5.42l-.38 2.65c-.61.25-1.17.58-1.7.98l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64L4.57 11c-.04.32-.07.66-.07.98s.03.66.07.98L2.46 14.63a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.34.66.24l2.44-1c.53.4 1.09.73 1.7.98l.38 2.65a.5.5 0 0 0 .5.42h4a.5.5 0 0 0 .5-.42l.38-2.65c.61-.25 1.17-.58 1.7-.98l2.44 1c.24.1.52 0 .66-.24l2-3.46a.5.5 0 0 0-.12-.64L19.43 13ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" />
         </svg>
       </button>
-      <span className="text-[10px] font-medium tracking-[0.35em] text-brand-textDim">Genba</span>
+      <span className="text-[10px] font-medium tracking-[0.35em] text-brand-textDim">Seiton</span>
 
       {open ? (
         <div className="absolute left-0 top-12 w-56 rounded-xl border border-brand-line bg-brand-surface/95 p-1.5 shadow-2xl backdrop-blur-lg">

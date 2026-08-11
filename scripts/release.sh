@@ -1,12 +1,12 @@
 #!/bin/bash
-# Genba 配布用リリースビルド: Developer ID 署名 + 公証 (notarization) + 検証
+# Seiton 配布用リリースビルド: Developer ID 署名 + 公証 (notarization) + 検証
 #
 # 前提 (docs/internal/RELEASE.md 参照):
 #   1. Apple Developer Program 加入済み
 #   2. "Developer ID Application" 証明書がキーチェーンにある
 #   3. 環境変数: APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID
 #
-# 出力: /tmp/genba-release/Genba-<version>-arm64.dmg (署名+公証+staple済み)
+# 出力: /tmp/seiton-release/Seiton-<version>-arm64.dmg (署名+公証+staple済み)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -32,10 +32,10 @@ echo "== 3/5 dmg 生成 + 署名 + 公証 (数分かかります)"
 # 出力は iCloud 外へ (Desktop 配下だと拡張属性で codesign が失敗する)
 # CSC_NAME は証明書タイプの接頭辞を含めてはいけない (electron-builder が自動選択する)
 export CSC_NAME="${IDENTITY#Developer ID Application: }"
-npx electron-builder --mac dmg --config.directories.output=/tmp/genba-release
+npx electron-builder --mac dmg --config.directories.output=/tmp/seiton-release
 
-DMG=$(ls -t /tmp/genba-release/*.dmg | head -1)
-APP="/tmp/genba-release/mac-arm64/Genba.app"
+DMG=$(ls -t /tmp/seiton-release/*.dmg | head -1)
+APP="/tmp/seiton-release/mac-arm64/Seiton.app"
 
 # electron-builder は .app だけを公証して dmg を作るため、**dmg 容器自体にはチケットが無い**。
 # ダウンロードした dmg をオフラインで開くと警告が出るので、dmg も公証して staple する。
@@ -56,4 +56,4 @@ xcrun stapler validate "$DMG"
 echo "== 完了"
 ls -lh "$DMG"
 echo "このdmgを GitHub Releases にアップロードしてください:"
-echo "  gh release create v\$(node -p \"require('./package.json').version\") \"$DMG\" --title \"Genba v...\" --notes \"...\""
+echo "  gh release create v\$(node -p \"require('./package.json').version\") \"$DMG\" --title \"Seiton v...\" --notes \"...\""

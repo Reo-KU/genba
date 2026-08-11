@@ -1,17 +1,17 @@
 {
-  "name": "genba",
+  "name": "seiton",
   "version": "0.1.0",
-  "description": "Genba — mission control for your AI agents",
+  "description": "Seiton — mission control for your AI agents",
   "author": "komaireo",
   "license": "BUSL-1.1",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Reo-KU/genba.git"
+    "url": "git+https://github.com/Reo-KU/seiton.git"
   },
   "bugs": {
-    "url": "https://github.com/Reo-KU/genba/issues"
+    "url": "https://github.com/Reo-KU/seiton/issues"
   },
-  "homepage": "https://github.com/Reo-KU/genba#readme",
+  "homepage": "https://github.com/Reo-KU/seiton#readme",
   "main": "out/main/main.js",
   "type": "module",
   "scripts": {
@@ -48,8 +48,8 @@
     "vite": "^7.3.3"
   },
   "build": {
-    "appId": "app.genba.desktop",
-    "productName": "Genba",
+    "appId": "app.seiton.desktop",
+    "productName": "Seiton",
     "electronLanguages": ["en", "ja"],
     "mac": {
       "icon": "build/icon.icns",

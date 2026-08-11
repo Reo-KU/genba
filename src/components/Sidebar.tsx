@@ -255,7 +255,7 @@ export default function Sidebar(): ReactElement {
           style={{ maxHeight: "calc(100vh - 220px)" }}
         >
           <div className="flex shrink-0 items-center justify-between border-b border-brand-line px-3 py-2.5">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-textDim">Genba</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-textDim">Seiton</span>
             <button
               type="button"
               onClick={() => setOpen(false)}

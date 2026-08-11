@@ -1,26 +1,26 @@
-# Genba (現場) — AIエージェントの現場が、一枚で見える
+# Seiton (整頓) — AIエージェントの現場が、一枚で見える
 
-> ライセンス: Genba は source-available project です。**個人としての利用は、
+> ライセンス: Seiton は source-available project です。**個人としての利用は、
 > 職場・業務・商用プロジェクトでの利用を含めて恒久無料・機能制限なし**です。
 > 商用ライセンスが必要になるのは、**組織が標準ツールとして導入・配布する場合**
-> のみ (組織内での評価利用は無料)。また、Genba または派生版を Hosted SaaS /
+> のみ (組織内での評価利用は無料)。また、Seiton または派生版を Hosted SaaS /
 > Cloud / managed service / 競合する automation platform として提供・販売する
 > ことは、別途書面による商用ライセンスなしには許可されません。
 > 詳細は [LICENSE](LICENSE) を確認してください。
-> Genba / Genba OS / Genba Cloud は Reo Komai の商標・ブランド名です。
+> Seiton / Seiton / Seiton Cloud は Reo Komai の商標・ブランド名です。
 > 公式リポジトリは
-> [github.com/Reo-KU/genba](https://github.com/Reo-KU/genba)
+> [github.com/Reo-KU/seiton](https://github.com/Reo-KU/seiton)
 > です。ライセンス・商用利用の問い合わせ先は
 > [imopotato8@gmail.com](mailto:imopotato8@gmail.com) です。
 
-![Genba デモ — エージェントが働くフォルダが光り、クリックで本物のセッションに話せる](docs/assets/demo.gif)
+![Seiton デモ — エージェントが働くフォルダが光り、クリックで本物のセッションに話せる](docs/assets/demo.gif)
 
 **いま動いている本物の AI CLI セッション (Claude Code / OpenAI Codex /
 Gemini CLI / Grok / 任意のカスタム CLI) を、1枚のボードで見て、動かす
 デスクトップアプリ。**
 
 - **本物のセッション、ラッパーなし**: エージェントはアプリより長生きする
-  tmux セッションで動く。Genba を終了してもエージェントは走り続け、
+  tmux セッションで動く。Seiton を終了してもエージェントは走り続け、
   再起動すると盤面が繋ぎ直される。普通のターミナルから `tmux attach` で
   同じセッションを覗くこともできる
 - **フォルダ樹形図 (作業スペースツリー)**: どのフォルダで何が動いているかが
@@ -40,7 +40,7 @@ vault 内 `MAO/` フォルダ (自動作成) に task note を作り、完了報
 
 > English version: [README.md](README.md)
 
-> ⚠️ **Genba は agent の CLI を同梱していません。** 各エージェントに設定した
+> ⚠️ **Seiton は agent の CLI を同梱していません。** 各エージェントに設定した
 > `command` をそのまま spawn するだけなので、使いたい CLI は別途インストール
 > してください（下記 Prerequisites）。
 
@@ -48,7 +48,7 @@ vault 内 `MAO/` フォルダ (自動作成) に task note を作り、完了報
 
 ### 1. 必須のシステムツール
 
-Genba 本体には Node.js のほか、interactive モードのバックエンドとして 2 つの
+Seiton 本体には Node.js のほか、interactive モードのバックエンドとして 2 つの
 system バイナリが必要です。
 
 | ツール | macOS インストール | 用途 |
@@ -60,7 +60,7 @@ Linux: apt / dnf / pacman で同等パッケージを入れてください。Win
 
 ### 2. 各 agent の CLI (使うものだけ)
 
-実際に登録する agent の `command` だけ用意すれば OK。Genba の allowlist は
+実際に登録する agent の `command` だけ用意すれば OK。Seiton の allowlist は
 `claude` / `codex` / `grok` / `gemini` と、custom 用に `sh` / `bash` / `zsh` /
 `python` / `python3` / `node` を許可しています。
 
@@ -72,7 +72,7 @@ Linux: apt / dnf / pacman で同等パッケージを入れてください。Win
 | `grok` | xAI の `grok-cli` (プロジェクト固有) | プロジェクト依存 |
 | `custom` | allowlist 内の任意コマンド | プロジェクト依存 |
 
-Genba 起動前に確認:
+Seiton 起動前に確認:
 
 ```sh
 which tmux node
@@ -85,16 +85,16 @@ allowlist 外のコマンドや PATH 上に無いものを指定すると、agen
 
 ### 3. (任意) CLI ごとの認証
 
-各 agent CLI は自身でクレデンシャル管理します。Genba はログイン代行を
+各 agent CLI は自身でクレデンシャル管理します。Seiton はログイン代行を
 しません。spawn された CLI が working directory で既に認証済み、という
-前提です。Genba に登録する前に、各 CLI を 1 度手動起動してログインしておいて
+前提です。Seiton に登録する前に、各 CLI を 1 度手動起動してログインしておいて
 ください。
 
 ## セットアップ
 
 ```sh
-git clone https://github.com/Reo-KU/genba.git
-cd genba
+git clone https://github.com/Reo-KU/seiton.git
+cd seiton
 npm install
 ```
 
@@ -141,7 +141,7 @@ JSON は手動編集も可能 (zod で検証され、不正なら空配列で初
 
 ## ワークスペース内に作られるファイル
 
-Genba は agent の `workingDirectory` 内に `.mao/` ディレクトリを作成し、以下を
+Seiton は agent の `workingDirectory` 内に `.mao/` ディレクトリを作成し、以下を
 管理します:
 
 - `.mao/<taskId>.md` — タスク仕様 (graph 情報 / プロジェクト情報 / 受信指示 / 応答ルール)
@@ -151,7 +151,7 @@ agent には PTY 経由で短い自然文だけが送られ、複雑な文脈は
 読まれます。これは claude TUI の prompt injection 検知や、CLI の sandbox
 permission ブロックを避けるためです。
 
-`.mao/` は Genba が起動時に各 workspace の `.gitignore` に自動追記します
+`.mao/` は Seiton が起動時に各 workspace の `.gitignore` に自動追記します
 (workspace が git 管理下の場合のみ)。タスク仕様ファイルは成功・中断・タイム
 アウト・エラーのいずれでも削除され、`signals.log` は大きくなったら rotate
 されます。
@@ -206,7 +206,7 @@ permission ブロックを避けるためです。
 
 ## セットアップ確認
 
-Genba は起動時に tmux などの必須ツールを確認します。不足がある場合は
+Seiton は起動時に tmux などの必須ツールを確認します。不足がある場合は
 セットアップモーダルにインストールコマンドが表示されます。自動インストールに
 対応したツールは **Install** ボタンで進捗を見ながら実行でき、手動で入れる場合は
 **Copy** してターミナルで実行できます。
@@ -224,12 +224,12 @@ xterm ログビューアのまま。
 tmux attach -t mao-orch
 ```
 
-`Ctrl+B → n` で window 切替、`Ctrl+B → d` でデタッチ。Genba とリアルタイムに
+`Ctrl+B → n` で window 切替、`Ctrl+B → d` でデタッチ。Seiton とリアルタイムに
 同期します。
 
 ## Permission Policy
 
-各 agent には `permissionPolicy` があり、Genba が CLI 別のフラグに翻訳して
+各 agent には `permissionPolicy` があり、Seiton が CLI 別のフラグに翻訳して
 spawn 時に渡します:
 
 | Policy | codex | claude | gemini |
@@ -244,13 +244,13 @@ spawn 時に渡します:
 
 ### `ask` (都度承認) と CLI 別の挙動
 
-`ask` は Genba が個別の tool call に介入できる唯一のポリシー。CLI が公開している
+`ask` は Seiton が個別の tool call に介入できる唯一のポリシー。CLI が公開している
 hook 次第で挙動が変わります:
 
 | CLI | `ask` + `exec` | `ask` + `interactive` |
 |---|---|---|
-| **claude** | ✅ Genba モーダル。Write / Bash 等の tool call ごとに "⚠️ Permission Request" ダイアログが出る (`--permission-prompt-tool` 経由) | ✅ 同じモーダル。または CLI の TUI プロンプトが下部 Terminal に表示 |
-| **codex** | ⚠️ codex exec は `approval: never` 固定で承認 hook 無し。Genba は危険操作を黙って拒否する。Inspector に黄注意あり | ✅ codex の TUI プロンプトが下部 Terminal に出るので `y` / `n` / `1` / `2` でタイプ |
+| **claude** | ✅ Seiton モーダル。Write / Bash 等の tool call ごとに "⚠️ Permission Request" ダイアログが出る (`--permission-prompt-tool` 経由) | ✅ 同じモーダル。または CLI の TUI プロンプトが下部 Terminal に表示 |
+| **codex** | ⚠️ codex exec は `approval: never` 固定で承認 hook 無し。Seiton は危険操作を黙って拒否する。Inspector に黄注意あり | ✅ codex の TUI プロンプトが下部 Terminal に出るので `y` / `n` / `1` / `2` でタイプ |
 | **gemini** | ⚠️ 同じく hook 無し。Inspector が警告 | ✅ Gemini の TUI プロンプトが下部 Terminal に出る |
 | **grok / custom** | ⚠️ CLI 依存 | ✅ CLI が TUI でプロンプトを出すなら下部 Terminal で対応 |
 
